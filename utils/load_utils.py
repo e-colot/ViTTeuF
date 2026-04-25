@@ -1,67 +1,59 @@
 import torch
+import numpy as np
 from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
 from nuscenes.nuscenes import NuScenes
-from PIL import Image
+from nuscenes.utils.data_classes import LidarPointCloud
 import os
 
-class NuScenesDataset(Dataset):
-    def __init__(self, nusc, sensor_name='CAM_FRONT', transform=None):
-        """
-        Args:
-            nusc: The initialized NuScenes object.
-            sensor_name: Which sensor to load (e.g., 'CAM_FRONT', 'LIDAR_TOP').
-            transform: PyTorch transforms for the data.
-        """
+class NuScenesLidarDataset(Dataset):
+    def __init__(self, nusc, sensor_name='LIDAR_TOP'):
         self.nusc = nusc
         self.sensor_name = sensor_name
-        self.transform = transform
-        # Each 'sample' in nuScenes is a timestamp with multi-modal data
         self.tokens = [s['token'] for s in self.nusc.sample]
+
+        print(f"{'=' * 15} DATA LOADER CREATION {'=' * 15}")
+        print(f"Dataset loaded with {len(self)} samples")
+        print(f"{'-' * 50}\n")
 
     def __len__(self):
         return len(self.tokens)
 
     def __getitem__(self, idx):
         sample_token = self.tokens[idx]
-        sample_rec = self.nusc.get('sample', sample_token)
+        sample = self.nusc.get('sample', sample_token)
         
-        # Get the data token for the specific sensor
-        sd_token = sample_rec['data'][self.sensor_name]
-        
-        # Returns the actual file path on your disk
+        # 1. Load LiDAR Points
+        sd_token = sample['data'][self.sensor_name]
         data_path, _, _ = self.nusc.get_sample_data(sd_token)
-        
-        # Load image
-        image = Image.open(data_path).convert('RGB')
-        
-        if self.transform:
-            image = self.transform(image)
-            
-        # For now, we return the image and the token 
-        # (You can expand this to return 3D boxes or labels later)
-        return image, sample_token
+        pc = LidarPointCloud.from_file(data_path)
+        points = torch.tensor(pc.points.T, dtype=torch.float32) # [N, 4] (x, y, z, intensity)
 
-def get_dataloader(dataroot, version='v1.0-mini', batch_size=4, sensor='CAM_FRONT'):
-    # 1. Initialize the NuScenes DB
+        # 2. Get Annotations (Bounding Boxes)
+        # We get boxes in the global frame or ego frame
+        _, boxes, _ = self.nusc.get_sample_data(sd_token)
+        
+        annotations = []
+        for box in boxes:
+            # Storing translation (x, y, z), size (w, l, h), and class
+            annotations.append({
+                'center': box.center,
+                'size': box.wlh,
+                'name': box.name,
+                'token': box.token
+            })
+
+        return points, annotations, sample_token
+
+def collate_fn(batch):
+    """Custom collate because LiDAR points have different shapes per frame."""
+    points = [item[0] for item in batch]
+    anns = [item[1] for item in batch]
+    tokens = [item[2] for item in batch]
+    return points, anns, tokens
+
+def get_dataloader(dataroot, version='v1.0-mini', batch_size=1):
     nusc = NuScenes(version=version, dataroot=dataroot, verbose=False)
-    
-    # 2. Define standard transforms
-    data_transform = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    ])
-    
-    # 3. Create Dataset and Loader
-    dataset = NuScenesDataset(nusc, sensor_name=sensor, transform=data_transform)
-    
-    loader = DataLoader(
-        dataset, 
-        batch_size=batch_size, 
-        shuffle=True, 
-        num_workers=0 # Set to 0 if you encounter Windows multiprocessing issues
-    )
-    
-    return loader
+    dataset = NuScenesLidarDataset(nusc)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+
 
