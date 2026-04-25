@@ -1,0 +1,7 @@
+.venv
+.vscode
+ViTTeuF # name of local venv
+
+**/__pycache__/
+data/*
+!data/.gitkeep
