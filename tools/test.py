@@ -1,20 +1,30 @@
 from utils import load_utils
+from model import PointPillar
+import torch
 
 PATH_TO_DATA = './data' 
-BATCH_SIZE = 1
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-train_loader = load_utils.get_dataloader(dataroot=PATH_TO_DATA, batch_size=BATCH_SIZE)
+feeder = load_utils.Feeder(PATH_TO_DATA, device)
 
-for points, anns, tokens in train_loader:
-    
+
+model = PointPillar.PillarSplit(220, 220, 1/16, 64)
+
+
+
+
+model.to(device)
+
+max_points = 0
+for points, anns, tokens in feeder:    
     # points is a list of tensors of shape:
-    # [B](N, 4)
-    # this notation means a python list of 8 elements, each element being a tensor of Nx4 elements
-    # B is the batch size, defined in the train_loader definition
-    # Because the N (number of lidar points) is varying, it cannot be in a 3D tensor
+    # (N, 4)
+    # tensor of Nx4 elements
+    # N (number of lidar points) is varying
+    # 4 is the points features (x, y, z, intensity)
 
     # anns (for annotations) is a 2D list of dictionaries
-    # [B, N_el]
+    # [N_el]
     # B is the batch size and N_el the number of elements in the scene
     # The dictionary of each element contains:
     #   'center': numpy array of 3 elements, (x, y, z)
@@ -22,8 +32,10 @@ for points, anns, tokens in train_loader:
     #   'name': string
     #   'token': string
 
-    # tokens, a string identifying the frame if no misinterpretation happenend
+    # tokens, a string identifying the frame
+    pillars, pillar_usage, pillar_idx = model(points)
+    maxPointsPerPillar = max(pillar_usage)
+    max_points = max(max_points, maxPointsPerPillar)
 
-    print('This was the test')
-    break
+print(f"Max points: {max_points}")
 

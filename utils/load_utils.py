@@ -5,6 +5,21 @@ from nuscenes.nuscenes import NuScenes
 from nuscenes.utils.data_classes import LidarPointCloud
 import os
 
+class Feeder:
+    def __init__(self, path_to_data, device):
+        self.train_loader = get_dataloader(dataroot=path_to_data)
+        self.device = device
+
+    def __iter__(self):
+        for points, anns, tokens in self.train_loader:
+            points = points.to(self.device).squeeze(0)
+            anns = anns.to(self.device)
+            tokens = tokens.to(self.device)
+
+            yield points, anns, tokens
+
+max_points = 0
+
 class NuScenesLidarDataset(Dataset):
     def __init__(self, nusc, sensor_name='LIDAR_TOP'):
         self.nusc = nusc
@@ -54,6 +69,6 @@ def collate_fn(batch):
 def get_dataloader(dataroot, version='v1.0-mini', batch_size=1):
     nusc = NuScenes(version=version, dataroot=dataroot, verbose=False)
     dataset = NuScenesLidarDataset(nusc)
-    return DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 
