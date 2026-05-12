@@ -13,9 +13,6 @@ class Feeder:
     def __iter__(self):
         for points, anns, tokens in self.train_loader:
             points = points.to(self.device).squeeze(0)
-            anns = anns.to(self.device)
-            tokens = tokens.to(self.device)
-
             yield points, anns, tokens
 
 max_points = 0

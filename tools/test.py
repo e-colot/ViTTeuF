@@ -1,21 +1,24 @@
 from utils import load_utils
 from model import PointPillar
 import torch
+import matplotlib.pyplot as plt
 
 PATH_TO_DATA = './data' 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Current device: {device}")
 
 feeder = load_utils.Feeder(PATH_TO_DATA, device)
 
+H, W = 220, 220
+block_scale = 1.0/1024
+max_voxels = 64
 
-model = PointPillar.PillarSplit(220, 220, 1/16, 64)
+VFE_layers = [8, 16, 32, 64]
+
+split = PointPillar.PillarSplit(H, W, block_scale, max_voxels).to(device)
+vfe = PointPillar.PillarVFE(H, W, block_scale, VFE_layers).to(device)
 
 
-
-
-model.to(device)
-
-max_points = 0
 for points, anns, tokens in feeder:    
     # points is a list of tensors of shape:
     # (N, 4)
@@ -33,9 +36,8 @@ for points, anns, tokens in feeder:
     #   'token': string
 
     # tokens, a string identifying the frame
-    pillars, pillar_usage, pillar_idx = model(points)
-    maxPointsPerPillar = max(pillar_usage)
-    max_points = max(max_points, maxPointsPerPillar)
 
-print(f"Max points: {max_points}")
+    pillars, pillar_usage, pillar_idx = split(points)
+    pillar_features = vfe(pillars, pillar_usage, pillar_idx)
+
 
