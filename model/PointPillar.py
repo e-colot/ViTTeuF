@@ -148,3 +148,100 @@ class PillarVFE(nn.Module):
         pillars_2D[pillar_idx[:,0], pillar_idx[:,1],:] = pillar_features
 
         return pillars_2D
+    
+class ConvDeconvBlock(nn.Module):
+    def __init__(self, in_c, out_c, deconv_c, kernel, conv_stride, deconv_stride):
+        super().__init__()
+
+        padding = int((kernel-1)/2)
+
+        self.conv = nn.Sequential(
+            nn.ZeroPad2d(padding),
+            nn.Conv2d(in_c, out_c, kernel, conv_stride, padding=0, bias=False),
+            nn.BatchNorm2d(out_c),
+            nn.ReLU(),
+            nn.Conv2d(out_c, out_c, kernel, padding=padding, bias=False),
+            nn.BatchNorm2d(out_c),
+            nn.ReLU(),
+            nn.Conv2d(out_c, out_c, kernel, padding=padding, bias=False),
+            nn.BatchNorm2d(out_c),
+            nn.ReLU(),
+        )
+
+        if deconv_stride >= 1:
+            deconv_stride = int(deconv_stride)
+            self.deconv = nn.Sequential(
+                nn.ConvTranspose2d(out_c, deconv_c, deconv_stride+2*padding, deconv_stride, padding=padding, bias=False),
+                nn.BatchNorm2d(deconv_c),
+                nn.ReLU()
+            )
+        else:
+            stride = int(1.0/deconv_stride)
+            self.deconv = nn.Sequential(
+                nn.Conv2d(out_c, deconv_c, kernel, stride, padding=padding, bias=False),
+                nn.BatchNorm2d(deconv_c),
+                nn.ReLU()
+            )
+
+    def forward(self, feature):
+        convoluted = self.conv(feature)
+        deconvoluted = self.deconv(convoluted)
+
+        return convoluted, deconvoluted
+
+    
+class PillarConv(nn.Module):
+    def __init__(self, in_channel, out_channel, hidden_channels, kernel, stride, spatial_compression):
+        r"""
+        scalars (all int):
+            in_channel: C_in
+            out_channel: C_out
+            kernel: kernel of both conv and deconv
+            spatial_compression: factor by which the spatial dimensions are compressed
+
+        hidden_channels: List of channels in the intermediate convolutions
+        stride: List by which the x and y dimensions are divided
+
+        """
+        super().__init__()
+
+        assert len(hidden_channels) == len(stride)
+
+        self.layers = nn.ModuleList()
+
+        prev_channel = in_channel
+        deconv_stride = 1.0/spatial_compression
+
+        for i in range(len(hidden_channels)):
+            deconv_stride = deconv_stride * stride[i]
+
+            self.layers.append(ConvDeconvBlock(
+                prev_channel, hidden_channels[i], int(out_channel/len(hidden_channels)), kernel, stride[i], deconv_stride
+            ))
+
+            prev_channel = hidden_channels[i]
+
+    def forward(self, pillars_2D):
+        r"""        
+        Inputs:
+
+            pillars_2D:     W x H x C
+
+        Output:
+
+            pillars_2D:     W x H x C
+        """
+        pillars_2D = pillars_2D.permute(2, 0, 1).unsqueeze(0)
+        # 1 x C x W x H
+        # batchnorm needs a 4D tensor
+
+        out = []
+
+        for convDeconv in self.layers:
+            pillars_2D, out_feat = convDeconv(pillars_2D)
+            out.append(out_feat)
+
+        pillars_2D = torch.cat(out, dim=1)
+        pillars_2D = pillars_2D.squeeze(0).permute(1, 2, 0)
+        # W x H x C
+        return pillars_2D
