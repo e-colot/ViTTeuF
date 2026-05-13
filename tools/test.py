@@ -10,8 +10,8 @@ print(f"Current device: {device}")
 feeder = load_utils.Feeder(PATH_TO_DATA, device)
 
 H, W = 220, 220
-block_scale = 1.0/1024
-max_voxels = 64
+block_scale = 0.1
+max_voxels = 256
 
 VFE_layers = [18, 64]
 
@@ -38,6 +38,7 @@ for points, anns, tokens in feeder:
     # tokens, a string identifying the frame
 
     pillars, pillar_usage, pillar_idx = split(points)
+
     pillar_features = vfe(pillars, pillar_usage, pillar_idx)
     print(pillar_features.shape)
 

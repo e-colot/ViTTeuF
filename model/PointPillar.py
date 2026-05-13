@@ -7,9 +7,6 @@ class PillarSplit(nn.Module):
     Purely algorithmic, no ML layer.
     """
     def __init__(self, H, W, block_scale, max_voxels):
-        # (x, y) in (-110, -110) (110, 110)
-        # -> H = W = 220
-        # block_scale = 0.25 ?
         super().__init__()
 
         self.H = H
@@ -17,8 +14,8 @@ class PillarSplit(nn.Module):
         self.block_scale = block_scale
         self.max_voxels = max_voxels
 
-        self.gridWidth = int(H/block_scale)
-        self.gridHeight = int(W/block_scale)
+        self.gridHeight = int(H/block_scale)
+        self.gridWidth = int(W/block_scale)
 
     def forward(self, point_cloud):
         r"""        
@@ -37,7 +34,7 @@ class PillarSplit(nn.Module):
         L = point_cloud.shape[0]
 
         # Shift to be at positive coordinates
-        shift = torch.tensor([self.H/2, self.W/2, 0, 0], device=device, dtype=dtype)
+        shift = torch.tensor([self.W/2, self.H/2, 0, 0], device=device, dtype=dtype)
         pointcloud_shifted = point_cloud + shift
 
         x_idx = torch.div(pointcloud_shifted[:, 0], self.block_scale, rounding_mode='floor').long()
@@ -45,7 +42,7 @@ class PillarSplit(nn.Module):
         x_idx = x_idx.clamp(0, self.gridWidth - 1)
         y_idx = y_idx.clamp(0, self.gridHeight - 1)
 
-        flat_point_idx = x_idx * self.gridHeight + y_idx
+        flat_point_idx = x_idx + y_idx * self.gridWidth
         sorted_indices = torch.argsort(flat_point_idx, stable=True)
         sorted_flat_idx = flat_point_idx[sorted_indices]
 
@@ -80,8 +77,8 @@ class PillarSplit(nn.Module):
         pillar_usage = pillar_usage.to(torch.int32)
 
         pillar_idx = torch.zeros((N, 2), device=device, dtype=torch.int32)
-        pillar_idx[:, 0] = torch.div(unique_pillars, self.gridHeight, rounding_mode='floor')
-        pillar_idx[:, 1] = unique_pillars % self.gridHeight
+        pillar_idx[:, 0] = unique_pillars % self.gridWidth
+        pillar_idx[:, 1] = torch.div(unique_pillars, self.gridWidth, rounding_mode='floor')
 
         return pillars, pillar_usage, pillar_idx
     
@@ -96,6 +93,9 @@ class PillarVFE(nn.Module):
         self.H = H
         self.W = W
         self.block_scale = block_scale
+
+        self.gridHeight = int(H/block_scale)
+        self.gridWidth = int(W/block_scale)
 
         self.layer_list = nn.ModuleList()
         input_dim = 9
@@ -113,13 +113,13 @@ class PillarVFE(nn.Module):
         r"""        
         Inputs:
 
-            pillars:            N x max_voxels x 4
-            pillar_usage:       N
-            pillar_idx:         N x 2
+            pillars:        N x max_voxels x 4
+            pillar_usage:   N
+            pillar_idx:     N x 2
 
         Output:
 
-            pillar_features:    N x C
+            pillars_2D:     W x H x C
         """
         # feature augmentation
         pillar_x_centers = pillar_idx[:, 0] * self.block_scale - self.H/2.0
@@ -140,7 +140,11 @@ class PillarVFE(nn.Module):
         
         pillar_features = self.last_layer(pillar_features)
 
-        # keep 1 feature per pillar
+        # keep 1 feature per pillar -> N x C
         pillar_features = torch.max(pillar_features, dim=1)[0]
-        return pillar_features
-    
+
+        # Scatter to a 2D map
+        pillars_2D = torch.zeros(self.gridWidth, self.gridHeight, pillar_features.shape[1], dtype=pillar_features.dtype, device = pillar_features.device)
+        pillars_2D[pillar_idx[:,0], pillar_idx[:,1],:] = pillar_features
+
+        return pillars_2D
