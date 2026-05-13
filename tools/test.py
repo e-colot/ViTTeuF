@@ -13,7 +13,7 @@ H, W = 220, 220
 block_scale = 1.0/1024
 max_voxels = 64
 
-VFE_layers = [8, 16, 32, 64]
+VFE_layers = [18, 64]
 
 split = PointPillar.PillarSplit(H, W, block_scale, max_voxels).to(device)
 vfe = PointPillar.PillarVFE(H, W, block_scale, VFE_layers).to(device)
@@ -39,5 +39,6 @@ for points, anns, tokens in feeder:
 
     pillars, pillar_usage, pillar_idx = split(points)
     pillar_features = vfe(pillars, pillar_usage, pillar_idx)
+    print(pillar_features.shape)
 
 

@@ -27,17 +27,10 @@ class PillarSplit(nn.Module):
             point_cloud:    L x 4
 
         Outputs:
+
             pillars:        N x max_voxels x 4
-
-                contains the points, grouped in pillars
-
             pillar_usage:   N
-
-                contains the number of voxels per pillar
-
             pillar_idx:     N x 2
-
-                contains the grid index of each of the pillars kept
         """
         device = point_cloud.device
         dtype = point_cloud.dtype
@@ -93,6 +86,10 @@ class PillarSplit(nn.Module):
         return pillars, pillar_usage, pillar_idx
     
 class PillarVFE(nn.Module):
+    r"""
+    Pillar Voxel Feature Extraction.
+    Each pillar gets a fixed number of features using relative coordinates and linear transformations
+    """
     def __init__(self, H, W, block_scale, layers):
         super().__init__()
 
@@ -114,13 +111,15 @@ class PillarVFE(nn.Module):
 
     def forward(self, pillars, pillar_usage, pillar_idx):
         r"""        
-        Input:
+        Inputs:
 
-            pillars:        N x max_voxels x 4
-            pillar_usage:   N
-            pillar_idx:     N x 2
+            pillars:            N x max_voxels x 4
+            pillar_usage:       N
+            pillar_idx:         N x 2
 
-        Outputs:
+        Output:
+
+            pillar_features:    N x C
         """
         # feature augmentation
         pillar_x_centers = pillar_idx[:, 0] * self.block_scale - self.H/2.0
@@ -139,5 +138,9 @@ class PillarVFE(nn.Module):
             x = torch.relu(x)
             pillar_features = torch.cat((pillar_features, x), dim=-1)
         
-        return self.last_layer(pillar_features)
+        pillar_features = self.last_layer(pillar_features)
+
+        # keep 1 feature per pillar
+        pillar_features = torch.max(pillar_features, dim=1)[0]
+        return pillar_features
     
