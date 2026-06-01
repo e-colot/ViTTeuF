@@ -8,5 +8,10 @@ data/*
 
 *.bbl
 *.blg
-*.synctex.gz
+*.synctex*
+*.aux
+*.bcf
+*.log
+*.out
+*.run.xml
 
