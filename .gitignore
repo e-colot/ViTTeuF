@@ -5,3 +5,8 @@ ViTTeuF # name of local venv
 **/__pycache__/
 data/*
 !data/.gitkeep
+
+*.bbl
+*.blg
+*.synctex.gz
+
