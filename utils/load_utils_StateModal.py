@@ -7,16 +7,18 @@ from nuscenes.utils.splits import create_splits_scenes
 from PIL import Image
 import torchvision.transforms as transforms
 import os
+import matplotlib.pyplot as plt
 
 
 class Feeder:
-    def __init__(self, path_to_data, model, loss_fn, optimizer, device, batch_size=1):
+    def __init__(self, path_to_data, model, loss_fn, optimizer, device, save_dir, batch_size=1):
         self.train_loader = get_dataloader(dataroot=path_to_data, batch_size=batch_size, split = 'train')
         self.val_loader = get_dataloader(dataroot=path_to_data, batch_size=batch_size, split = 'val')
         self.model = model.to(device)
         self.loss_fn = loss_fn
         self.optimizer = optimizer
         self.device = device
+        self.save_dir = save_dir
 
     def train_epoch(self):
         self.model.train()
@@ -26,7 +28,6 @@ class Feeder:
         total_loss_ts = 0.0
         
         for batch_idx, (images, point_clouds, histories, futures) in enumerate(self.train_loader):
-            # Send standard batch tensors to device
             images = images.to(self.device)         # [Batch, 3, 224, 224]
             histories = histories.to(self.device)   # [Batch, 4, 2]
             futures = futures.to(self.device)       # [Batch, 12, 2]
@@ -34,14 +35,11 @@ class Feeder:
             # Since batch_size=1, grab the first raw point cloud item from the collated list
             pc_single = point_clouds[0].to(self.device) # [L, 4] | list[tensor[L,4]]-> list[0] for batch_size=1
 
-            # Optimization Step
             self.optimizer.zero_grad()
             
-            # Forward pass through the unified MultiModalTrajectoryPredictor
             #pred_trajs, pred_logits = self.model(images, pc_single, histories)
             pred_trajectories, pred_headings, pred_logits = self.model(images, pc_single, histories)
             
-            # Loss Calculation
             #loss, loss_reg, loss_cls = self.loss_fn(pred_trajs, pred_logits, futures)
             loss, loss_ts, loss_s, loss_cls = self.loss_fn(pred_trajectories,pred_headings, pred_logits, futures)
             
@@ -75,6 +73,9 @@ class Feeder:
         totalFDE = 0.0
         totalMISS = 0.0
         total_samples = 0
+        max_plots = 25
+        plotted_count = 0
+
         with torch.no_grad():
             for batch_idx, (images, point_clouds, histories, futures) in enumerate(self.val_loader):
                 images = images.to(self.device)         # [Batch, 3, 224, 224]
@@ -82,7 +83,7 @@ class Feeder:
                 futures = futures.to(self.device)       # [Batch, 12, 2]
                 pc_single = point_clouds[0].to(self.device) # [L, 4]
 
-                pred_trajectories,_,_ = self.model(images, pc_single, histories)
+                pred_trajectories,_,pred_logits = self.model(images, pc_single, histories)
 
                 metrics_out = compute_metrics(pred_trajectories, futures, miss_threshold = 2.0)
 
@@ -94,6 +95,63 @@ class Feeder:
 
                 #if batch_idx % 20 == 0 :
                 #   print(f"Batch {batch_idx:03d} |PER SAMPLE => MinADE: {metrics_out['MinADE']:.4f},MinFDE: {metrics_out['MinFDE']:.4f} , Missrate : {metrics_out['Missrate']:.4f}")
+
+                if batch_idx % 50 == 0 and plotted_count < max_plots:
+
+                    ground_truth_traj = futures[0].cpu().numpy()          # [12, 2]
+                    pred_traj = pred_trajectories[0].cpu().numpy()        # [6, 12, 2]
+                    pred_mode = pred_logits[0]  # [6]
+                    
+                    # Convert in percents
+                    probs = torch.softmax(pred_mode, dim=-1)
+
+                    best_mode_idx = torch.argmax(probs).item()
+                    
+                    plt.figure(figsize=(10, 7))
+
+                    # Add ego origin
+                    origin = np.array([[0.0, 0.0]])
+                    ground_truth_traj = np.vstack([origin, ground_truth_traj])
+                    
+                    # Plot the Ground Truth path
+                    plt.plot(ground_truth_traj[:, 0], ground_truth_traj[:, 1], 
+                            'k-o', label='Ground Truth Target', linewidth=2.5, markersize=5)
+                    plt.plot(0, 0, 'ro', markersize=8, label='Ego Vehicle Position (0,0)', zorder=5)
+                    
+                    # Plot each of trajectory predictions
+                    for k in range(pred_traj.shape[0]):
+                        mode_coords = pred_traj[k]
+                        mode_prob = probs[k].item()
+
+                        if k == best_mode_idx:
+                            lw = 4.0
+                            label_text = f'Mode {k} (Conf: {mode_prob:.2%}) [MAX PROB]'
+                            alpha = 1.0
+                        else:
+                            lw = 1.5
+                            label_text = f'Mode {k} (Conf: {mode_prob:.2%})'
+                            alpha = 0.75
+                        
+                        line_plot, = plt.plot(mode_coords[:, 0], mode_coords[:, 1], 
+                              '-o', label=label_text, linewidth=lw, markersize=4, alpha=alpha)
+                        
+                        # Highlight final frame position for each trajectory
+                        plt.plot(mode_coords[-1, 0], mode_coords[-1, 1], 'D',color = line_plot.get_color(),
+                                 markersize=12 if k == best_mode_idx else 8, alpha=alpha)
+                    
+                    plt.title(f"nuScenes Multimodal Inference | Scene {batch_idx}")
+                    plt.xlabel("X Position Relative to Agent (meters)")
+                    plt.ylabel("Y Position Relative to Agent (meters)")
+                    plt.grid(True, linestyle='--', alpha=0.6)
+                    plt.legend(loc='best')
+                    plt.axis('equal')
+                    
+                    plot_filename = os.path.join(self.save_dir, f"Scene_{batch_idx}.png")
+                    plt.savefig(plot_filename, dpi=150, bbox_inches='tight')
+                    plt.close()
+                    
+                    plotted_count += 1
+                    print(f" Saved in: {plot_filename}")
 
         return {
             "MinADE": totalADE / total_samples,
@@ -124,7 +182,7 @@ class NuScenesMultiModalDataset(Dataset):
         self.past_steps = int(past_seconds * frequency)    # 2s * 2Hz = 4 steps
         self.future_steps = int(future_seconds * frequency) # 6s * 2Hz = 12 steps
         
-        # Standard Camera Normalization
+        # Camera Normalization for Rersnet18
         self.img_transform = transforms.Compose([
             transforms.Resize((224, 224)),
             # Standard size for ResNet18
@@ -134,7 +192,7 @@ class NuScenesMultiModalDataset(Dataset):
             # Normalization around 0, mean and std from ImageNet dataset
         ])
         
-        # Build list of trackable vehicle instances
+        # Build usable training/validation list
         self.samples_list = self._build_trajectory_dataset()
 
         if self.split == 'train':
@@ -161,7 +219,7 @@ class NuScenesMultiModalDataset(Dataset):
 
             for ann_token in sample['anns']: # [Token_car, Token_ped, Token_car2, etc]
                 ann = self.nusc.get('sample_annotation', ann_token) # Get data from the Object content
-                # Only track moving cars with enough sequential history and future frames
+                # Check if Car has sufficient frames history
                 if 'vehicle.car' in ann['category_name'] and self._has_enough_history_and_future(ann_token):
                     valid_sequences.append({
                         'sample_token': sample['token'], # Scene Token
@@ -171,7 +229,6 @@ class NuScenesMultiModalDataset(Dataset):
         return valid_sequences
 
     def _has_enough_history_and_future(self, ann_token):
-        # Verify past sequence depth
         curr_ann = self.nusc.get('sample_annotation', ann_token)
         # Rewind the past of the Object and check if associated previous scene exist or not
         # Saying in other words, verify if the object is still present in the past steps (4 frames before)
@@ -197,24 +254,24 @@ class NuScenesMultiModalDataset(Dataset):
         meta = self.samples_list[idx]
         sample = self.nusc.get('sample', meta['sample_token'])
         
-        # 1. LOAD CAMERA DATA
+        # LOAD CAMERA DATA
         cam_token = sample['data'][self.camera_name]
         img_path, _, _ = self.nusc.get_sample_data(cam_token)
         image = Image.open(img_path).convert('RGB')
         image_tensor = self.img_transform(image) # [3, 224, 224]
 
-        # 2. LOAD LIDAR POINT CLOUD
+        # LOAD LIDAR POINT CLOUD
         lidar_token = sample['data'][self.lidar_name]
         lidar_path, _, _ = self.nusc.get_sample_data(lidar_token)
         pc = LidarPointCloud.from_file(lidar_path)
         # Transpose to get [L, 4] -> (x, y, z, intensity)
         point_cloud_tensor = torch.tensor(pc.points.T, dtype=torch.float32)
 
-        # 3. COORDINATE CALCULATIONS (RELATIVE TRANSLATIONS)
+        # COORDINATE CALCULATIONS (RELATIVE TRANSLATIONS)
         curr_ann = self.nusc.get('sample_annotation', meta['ann_token'])
         origin_xy = np.array(curr_ann['translation'][:2])
 
-        # Past Trajectory History
+        # PAST HISTORY
         history_coords = []
         temp_ann = curr_ann
         for _ in range(self.past_steps):
@@ -223,7 +280,7 @@ class NuScenesMultiModalDataset(Dataset):
         history_coords.reverse() # Reverse the list to get the oldest scene at the first index
         history_tensor = torch.tensor(np.array(history_coords), dtype=torch.float32) # [4, 2]
 
-        # Future Trajectory Ground Truth
+        # FUTURE HISTORY FOR GROUND TRUTH
         future_coords = []
         temp_ann = curr_ann
         for _ in range(self.future_steps):
@@ -236,7 +293,7 @@ class NuScenesMultiModalDataset(Dataset):
 def multimodal_collate(batch):
     images = torch.stack([item[0] for item in batch], dim=0)
     # Leave point clouds as a raw list of varying-length tensors
-    point_clouds = [item[1] for item in batch]  # Cannot stak tensor of different size ! pointcloud varies from 1 scene to another
+    point_clouds = [item[1] for item in batch]  # Cannot stack tensor of different size ! pointcloud varies from 1 scene to another
     histories = torch.stack([item[2] for item in batch], dim=0)
     futures = torch.stack([item[3] for item in batch], dim=0)
     
