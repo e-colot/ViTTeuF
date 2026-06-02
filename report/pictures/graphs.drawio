@@ -1,0 +1,49 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/26.1.1 Chrome/132.0.6834.210 Electron/34.3.3 Safari/537.36" version="26.1.1">
+  <diagram name="Page-1" id="4PA3D_NpOJ_P3DOjqizn">
+    <mxGraphModel dx="534" dy="621" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="tf9an4Oq9EpoPGTNi5wi-7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="tf9an4Oq9EpoPGTNi5wi-1" target="tf9an4Oq9EpoPGTNi5wi-3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tf9an4Oq9EpoPGTNi5wi-1" value="&lt;b&gt;LiDAR&lt;/b&gt;&lt;div&gt;&lt;b&gt;points&lt;/b&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="90" width="80" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="tf9an4Oq9EpoPGTNi5wi-6" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="tf9an4Oq9EpoPGTNi5wi-2" target="tf9an4Oq9EpoPGTNi5wi-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tf9an4Oq9EpoPGTNi5wi-2" value="&lt;b&gt;Camera&lt;/b&gt;&lt;div&gt;&lt;b&gt;pictures&lt;/b&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="150" width="80" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="tf9an4Oq9EpoPGTNi5wi-3" value="&lt;b&gt;PointPillar&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="200" y="100" width="80" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="tf9an4Oq9EpoPGTNi5wi-4" value="&lt;b&gt;ResNet-18&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="200" y="160" width="80" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="tf9an4Oq9EpoPGTNi5wi-13" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="tf9an4Oq9EpoPGTNi5wi-5" target="tf9an4Oq9EpoPGTNi5wi-12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tf9an4Oq9EpoPGTNi5wi-5" value="&lt;b&gt;Transformer&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;horizontal=0;" vertex="1" parent="1">
+          <mxGeometry x="320" y="90" width="50" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="tf9an4Oq9EpoPGTNi5wi-10" value="" style="endArrow=classic;html=1;rounded=0;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="280" y="169.76" as="sourcePoint" />
+            <mxPoint x="320" y="169.76" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tf9an4Oq9EpoPGTNi5wi-11" value="" style="endArrow=classic;html=1;rounded=0;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="280" y="109.75999999999999" as="sourcePoint" />
+            <mxPoint x="320" y="109.75999999999999" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tf9an4Oq9EpoPGTNi5wi-12" value="&lt;b&gt;Trajectory forecast&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="400" y="120" width="80" height="40" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

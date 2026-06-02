@@ -54,6 +54,19 @@ TODO
 
 \section{Our Model}
 
+The HTTP model presented in this paper uses both LiDAR points and pictures taken from the front camera in order to predict the trajectory of nearby vehicles. The inputs are refined using either the PointPillar model \cite{lang2019pointpillars} for the LiDAR, or the ResNet-18 model \cite{he2016deep} to process the pictures.
+
+The extracted features are then fused inside a Transformer that produces a trajectory forecast over a horizon of 6 seconds.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.48\textwidth]{pictures/generalStructure.png}
+    \caption{General structure of the HTTP model.}
+    \label{fig:generalStructure}
+\end{figure}
+
+\Cref{fig:generalStructure} showcases a block structure of the model and its different components are detailed hereafter.
+
 \subsection{PointPillar}
 
 \subsection{Resnet-18}
