@@ -52,6 +52,8 @@ TODO
 
 \section{State of the Art}
 
+\section{The Dataset}
+
 \section{Our Model}
 
 The HTTP model presented in this paper uses both LiDAR points and pictures taken from the front camera in order to predict the trajectory of nearby vehicles. The inputs are refined using either the PointPillar model \cite{lang2019pointpillars} for the LiDAR, or the ResNet-18 model \cite{he2016deep} to process the pictures.
@@ -70,6 +72,73 @@ The extracted features are then fused inside a Transformer that produces a traje
 \subsection{PointPillar}
 
 \subsection{Resnet-18}
+ Rather than projecting the raw camera data directly into the target feature dimensions at the encoder, the input passes through feature extraction network introduced in the paper \textit{"Deep Residual Learning for Image Recognition"}(He et al., 2015), known as \textbf{Resnet}.  Historically, in 2015, image treatment was lead by the assumption that increasing network depth improves in a steadly way the feature extraction capacity of the network.  However, this idea hits severe optimization bottlenecks. First, the vanishing/exploding gradient during the backpropagation and second, a degradation of the training error once reaching a floor value.  The latter degradation reveals a fundamental limitation of such deep network stacking linear transformation and non-linear activation function (e.g. ReLu) which is expressed, in the litterature, by the difficutly of performing an identity mapping for deep layers, or saying otherwise the ability to perform an identity transformation.  To give an example, if a 30 layers Convolutional Neural Networks (\textbf{CNNs}) training leads to a lower error than a 50 layers counterpart, it implies that the 20 additional layers are, in the first place, unable to converge towards the same model accuracy, but furthermore, are distorting the output features by the inability of the NN layers to operate an identity transformation. To overcome these limiting performance constraints, \textbf{Resnet} introduces a direct path between the embedded input vector and the output of the feedforward performing a elementwise summation - \Cref{fig:Resnet_strat}.  This path, also known as shortcut connection, make trivial the build of a identity mapping (no weigth paramater through the direct connection) while optimizing the features of the \textbf{input residual} - $\mathcal{F}\mathrm{(x)}$.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.3\textwidth]{pictures/Resnet_strat.PNG}
+    \caption{Resnet block : residual learning.}
+    \label{fig:Resnet_strat}
+\end{figure}
+
+ The HTTP model incorparates a Resnet-18 architecture for image processing.  As indicated by the naming, the network contains a total of \textbf{18} layers with learnable parameters. The image is first resized, normalized and centered around zero prior being propagated through the Resnet backbone.  The output features are mapped via a linear layer and dimensioned to match the target size required for the embedding vectors at the encoder.  \Cref{fig:Resnet18_arch} showcases the network details.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.41\textwidth]{pictures/Resnet18_arch.PNG}
+    \caption{Resnet18 network architecture.}
+    \label{fig:Resnet18_arch}
+\end{figure}
+
+It is worth noting that while the Resnet-18 has been built from scratch in a dedicated class for learning prupose, the model utilizes the standardized Resnet library enabling the integration of pre-trained weights reducing the training convergence time.
+
+\subsection{Long Short Term Memory}
+
+  The last significant data still remaining at our disposal is the past trajectory history of the vehicle whose future path our model attempts to predict.  This coordinate sequences carries critical information about the kinetic and momentum state of the vehicle.  Nevertheless, these measurements are time-dependent and a standard feedforward linear NN is poorly suited to extract features spanning accross distinct timesteps.  To efficiently extract these dynamics, our model introduces a Recurrent Neuronal Network block (\textbf{RNN}), and more specifically a Long Short Term Memory (\textbf{LSTM}) block - \cite{DBLP:journals/corr/abs-2105-06756}.  Unlike to a standard RNN relying to a single memory state (known as the hidden state, $\mathrm{h_i}$), the LSTM decouples memory representation into a long term memory cell ($\mathrm{\mathcal{C}_i}$) and a short term memory state ($\mathrm{h_i}$).
+
+ \begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.41\textwidth]{pictures/LSTM_arch.PNG}
+    \caption{LSTM network architecture.}
+    \label{fig:LSTM_arch}
+\end{figure}
+
+The long term memory cell is linked with the short term memory state and the current input through \textbf{three gates}, namely the forget gate, the input gate and the candidate gate.  These gates regulates how the input and the short term memory modulate the long term memory cell, $\mathcal{C}_t$.  It is achieved either by attenuating features by element-wise multiplication with the forgetting output, $f_t$ or by adding new features through the combination of candidate gate output, $\tilde{c}_t$ and input gate output, $m_t$.
+
+\begin{align}
+    f_t &= \sigma(W_f \cdot [h_{t-1}, x_t] + b_f) \\
+    \tilde{c}_t &= \tanh(W_c \cdot [h_{t-1}, x_t] + b_c) \\
+    m_t &= \sigma(W_m \cdot [h_{t-1}, x_t] + b_m) \\
+    \mathcal{C}_t &= \mathcal{C}_{t-1} \odot f_t + \tilde{c}_t \odot m_t
+\end{align}
+
+$W_{h}$, $W_{x}$, $W_{x}$, $b_f$, $b_c$ and $b_m$ denote respectively the weights matrix and the biais vector associated to the gates, $h_{t-1}$ the previous hidden state, $x_{t}$ the current input.
+ 
+The primary advantage of such architecture lies in its stability against the vanishing/exploding gradient descent which is caused, for a standard RNN, by the recursive update of the hidden state at each time step leading making this long-term temporal dependency sensitive to such gradient problematic.
+
+For the standard RNN, The loss gradient of the hidden state is computed by repeated weight matrix multiplication, $W_{h}$, leading to a vanishing or exploding gardient depending on the largest matrix eigenvalue value.
+
+\begin{equation}
+    h_t = \tanh(W_{h} h_{t-1} + W_{x} x_t + b)
+    \label{eq:Hidden_state_equation}
+\end{equation}
+\begin{equation}
+    \dfrac{\partial \varepsilon}{\partial h_k} =  \dfrac{\partial \varepsilon}{\partial h_t} \cdot \prod_{j = k+1}^{t}\mathrm{term(\tanh(\alpha))}\cdot  W_{h}^T
+\end{equation}
+
+$W_{h}$ and $W_{x}$ denote the weights matrix associated to the hidden state and the input, $b$ the biais, $\varepsilon$ the error loss and $\alpha$ the term inside the function $\tanh$, Eq. ~\ref{eq:Hidden_state_equation}.
+
+In case of LSTM block, the gradient computation is significatively different and depends on the dynamic activation vector ($f_j$) \textit{programmed} by the network. This vector varies in function of the current input and the previous hidden state injected in the block.
+
+\begin{equation}
+    \dfrac{\partial \varepsilon}{\partial \mathcal{C}_k} =  \dfrac{\partial \varepsilon}{\partial \mathcal{C}_t} \cdot \prod_{j = k+1}^{t}\dfrac{\partial \mathcal{C}_t}{\partial \mathcal{C}_{t-1}}
+\end{equation}
+
+\begin{equation}
+    \dfrac{\partial \mathcal{C}_t}{\partial \mathcal{C}_{t-1}} \thickapprox f_t
+\end{equation}
+
+ Regarding our model implementation, upstream of the LSTM block, the original past positional history input (4 frames x 2 coordinates) is first processed by a 2-layer Linear network expanding the 2 coordinates features into 64 features then 256 features space. The hidden state vector and the long term memory Cell vector are also initialized as a zero vector.  Then, the LSTM block is instantiated by the \textit{CustomLSTMCell} class buidling a feedforward Linear network mapping the concatenated input features dimension and the hidden state vector dimension into combined four channel hidden state tensor.  The stacking of the weight matrices of each gate into an unified block helps saving time computation and optimizing the GPU usage.  By sequential application of the gate output equations, the LSTM block returns a post-processed hidden state vector output composed of 256 features.
 
 \subsection{Transformer}
 
