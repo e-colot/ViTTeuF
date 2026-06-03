@@ -49,8 +49,108 @@ TODO
 \end{abstract}
 
 \section{Introduction}
+Autonomous vehicles are widely considered to be a major part of the future of transportation. However, their deployment still faces important challenges, particularly in the detection and motion prediction of surrounding agents such as pedestrians and vehicles within complex driving environments.
+\\
+
+Developing such systems requires both large-scale multimodal datasets collected from multiple sensors and robust machine learning models capable of understanding dynamic traffic scenes. In the context of this project, our group focused specifically on vehicle trajectory prediction in urban environments.
+\\
+
+The obtained results are consistent with the existing literature on the subject. The following sections dive deeper into the different aspects of the project, including the dataset, model architecture, training procedure, and evaluation metrics.
 
 \section{State of the Art}
+
+This section presents the main concepts and architectures related to multimodal perception and trajectory forecasting for autonomous driving systems.
+
+\subsection{nuScenes dataset}
+
+For this project, we relied on the nuScenes dataset, which consists of driving scenes recorded using a Renault Zoe electric vehicle equipped with several type of sensors, including cameras, lidar sensors, and radar sensors.
+\
+
+The dataset contains recordings collected in both Boston and Singapore using a similar sensor configuration. In this work, we use the mini version of the original dataset containing 1000 scenes of 20 seconds recorded at a frequency of 2 Hz.
+
+\subsubsection{Objective of the nuScenes dataset}
+
+Reliable detection and tracking of surrounding agents are essential components of autonomous driving systems. To safely navigate complex urban environments, autonomous vehicles must continuously estimate the position and behavior of nearby road users such as pedestrians, cyclists, and vehicles.
+\
+
+Machine learning methods now play a central role in these perception tasks. However, although standard image datasets are highly accessible, they fail to fully capture the complexity of autonomous driving environments. As a result, multimodal datasets are generally preferred despite being significantly more difficult and expensive to collect.
+\\
+
+\subsubsection{Multimodal datasets}
+
+No individual sensor can independently provide all the information required for reliable autonomous driving. For this reason, modern autonomous vehicles combine several complementary sensing technologies.
+\
+
+\textbf{Cameras}
+\begin{itemize}
+\item \underline{Advantage}: cameras provide detailed visual information such as colors, textures, edges, and lighting conditions, enabling efficient object classification and accurate 2D perception.
+
+\item \underline{Disadvantage}: cameras provide limited direct depth estimation and reduced accuracy for precise 3D localization.
+
+\end{itemize}
+\
+
+\textbf{Lidar point clouds}
+\begin{itemize}
+\item \underline{Advantage}: lidar sensors provide highly accurate 3D localization of surrounding objects.
+
+\item \underline{Disadvantage}: lidar measurements are sparse and contain less semantic information than image data. Their detection range is also generally limited between 50 to 150 meters.
+
+\end{itemize}
+\
+
+\textbf{Radar sensors}
+\begin{itemize}
+\item \underline{Advantage}: radar sensors provide an extended detection range, typically between 200 and 300 meters, it also enables velocity estimation using Doppler effect.
+
+\item \underline{Disadvantage}: radar measurements are even sparser and less spatially precise than lidar observations.
+
+\end{itemize}
+
+Because these type of sensors provide complementary information, combining them generally improves the robustness and reliability of perception systems in complex traffic environments.
+
+\subsubsection{Annotations}
+
+Objects present in the keyframes are manually annotated and divided into 23 semantic categories, including several vehicle classes, pedestrians, cyclists, and additional road users.
+
+\subsection{Decoupling Motion Forecasting}
+
+DeMo proposes a trajectory forecasting framework for autonomous driving that aims to improve both the diversity and temporal consistency of predicted trajectories. Most recent forecasting methods rely on vectorized scene representations and follow a one-query-one-trajectory strategy, where each query directly predicts a single future trajectory. Although effective, this approach often provides limited modeling of the temporal evolution of vehicle states.
+\
+
+To overcome this limitation, DeMo introduces a decoupled query representation combined with State Space Models based on the Mamba architecture. Compared to conventional Transformer-based sequence modeling approaches, Mamba offers improved efficiency for long sequential dependencies while preserving strong temporal modeling capabilities.
+\
+
+The proposed framework separates trajectory representation into two complementary query types:
+\begin{itemize}
+
+\item \textbf{Motion mode queries}, which encode possible driving intentions such as lane following, left turns, or right turns.
+
+\item \textbf{Dynamic state queries}, which model the evolution of vehicle states over time and enforce temporal consistency across predicted trajectories.
+
+\end{itemize}
+
+The scene information is first extracted from HD maps and neighboring agents. Map polylines are encoded using a PointNet-based encoder, while historical trajectories are processed using several unidirectional Mamba blocks to capture temporal dependencies. These representations are then combined to build the final scene context features.
+\
+
+To jointly model motion intentions and temporal dynamics, the framework introduces three complementary modules:
+\begin{itemize}
+
+\item \textbf{State Consistency Module}: this module processes the dynamic state queries. The queries are first initialized through a Multi-Layer Perceptron (MLP), then refined through cross-attention interactions with the scene context features. Bidirectional Mamba layers are subsequently used to model temporal relationships between successive dynamic states.
+
+\item \textbf{Mode Localization Module}: this component focuses on directional intentions. Motion mode queries interact with the scene context through multi-head attention layers before MLP blocks estimate future trajectories and their associated confidence scores.
+
+\item \textbf{Hybrid Coupling Module}: this module combines motion mode queries and dynamic state queries in order to jointly model spatial intentions and temporal dynamics. Attention mechanisms are used to exchange information between the different query types before generating the final trajectory predictions.
+
+\end{itemize}
+
+The model is trained using a global loss function combining trajectory regression, classification losses, and auxiliary losses related to motion modes and temporal state consistency.
+\
+
+By separating directional intentions from temporal dynamic modeling, DeMo achieves a more detailed representation of future trajectories.
+\
+
+Experimental results obtained on the nuScenes and Argoverse 2 datasets show that this decoupled strategy improves trajectory prediction accuracy while maintaining efficient inference performance. This approach will serve as one of the main inspirations for our proposed model.
 
 \section{The Dataset}
 
