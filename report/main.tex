@@ -71,6 +71,50 @@ The extracted features are then fused inside a Transformer that produces a traje
 
 \subsection{PointPillar}
 
+\begin{figure}[htbp] % Standard figure keeps it confined to a single column
+    \centering
+    
+    % First Subfigure (Top Left within the column)
+    \begin{subfigure}{0.48\columnwidth}
+        \centering
+        \includegraphics[width=\textwidth]{pictures/pointpillar1.png}
+        \caption{Pillar shaping.}
+        \label{fig:pointpillar1}
+    \end{subfigure}
+    \hfill % Pushes them to the left and right edges of the single column
+    % Second Subfigure (Top Right within the column)
+    \begin{subfigure}{0.48\columnwidth}
+        \centering
+        \includegraphics[width=\textwidth]{pictures/pointpillar2.png}
+        \caption{Feature extraction.}
+        \label{fig:pointpillar2}
+    \end{subfigure}
+    
+    \vspace{10pt} % Adds vertical spacing between the rows
+    
+    % Third Subfigure (Bottom, spanning almost the full column width)
+    \begin{subfigure}{0.96\columnwidth}
+        \centering
+        \includegraphics[width=\textwidth]{pictures/pointpillar3.png}
+        \caption{CNN. plain lines are convolutions and dashed lines are deconvolutions. The dotted line represents a concatenation.}
+        \label{fig:pointpillar3}
+    \end{subfigure}
+
+    % Main Figure Legend
+    \caption{PointPillar model overview.}
+    \label{fig:pointpillar_combined}
+\end{figure}
+
+The feature extraction of the PointPillar model is split into three successive stages, all shown in \cref{fig:pointpillar_combined}. 
+
+The LiDAR points are first stacked in pillars based on their coordinates. A pillar contains at most 32 points and empty pillars are removed to reduce the memory footprint.
+
+The second stage extracts features from the voxels by adding to each voxel its relative position to the pillar center and the pillar centroid. The number of features is then increased by passing through a two layers network, consisting of a linear operation followed by a batchnorm and a ReLU. Only the maximal feature over the voxels is then kept, leading to 64 features per pillar.
+
+The last stage is a CNN, performing convolutions and deconvolutions on the pillars to extract data dependencies at different resolutions. Note that the pillars from the last stage are first placed on a grid matching the original position of the pillars.
+
+The dimensions of the map on which pillars are placed were determined in order to contain all the voxels in the dataset.
+
 \subsection{Resnet-18}
  Rather than projecting the raw camera data directly into the target feature dimensions at the encoder, the input passes through feature extraction network introduced in the paper \textit{"Deep Residual Learning for Image Recognition"}(He et al., 2015), known as \textbf{Resnet}.  Historically, in 2015, image treatment was lead by the assumption that increasing network depth improves in a steadly way the feature extraction capacity of the network.  However, this idea hits severe optimization bottlenecks. First, the vanishing/exploding gradient during the backpropagation and second, a degradation of the training error once reaching a floor value.  The latter degradation reveals a fundamental limitation of such deep network stacking linear transformation and non-linear activation function (e.g. ReLu) which is expressed, in the litterature, by the difficutly of performing an identity mapping for deep layers, or saying otherwise the ability to perform an identity transformation.  To give an example, if a 30 layers Convolutional Neural Networks (\textbf{CNNs}) training leads to a lower error than a 50 layers counterpart, it implies that the 20 additional layers are, in the first place, unable to converge towards the same model accuracy, but furthermore, are distorting the output features by the inability of the NN layers to operate an identity transformation. To overcome these limiting performance constraints, \textbf{Resnet} introduces a direct path between the embedded input vector and the output of the feedforward performing a elementwise summation - \Cref{fig:Resnet_strat}.  This path, also known as shortcut connection, make trivial the build of a identity mapping (no weigth paramater through the direct connection) while optimizing the features of the \textbf{input residual} - $\mathcal{F}\mathrm{(x)}$.
 
@@ -148,4 +192,5 @@ In case of LSTM block, the gradient computation is significatively different and
 
 \section{Conclusions}
 
+\printbibliography
 \end{document}
