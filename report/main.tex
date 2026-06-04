@@ -286,6 +286,41 @@ In case of LSTM block, the gradient computation is significatively different and
 
 \subsection{Transformer}
 
+The final module and core of our multi-modal model is the encoder decoder transformer. As briefly introduced at the beginning of the section, the main idea of the transformer is directly inspired from the framework proposed in \textit{"DeMo: Decoupling Motion Forecasting into Directional Intentions and Dynamic States"}(Zhang et al.,2024). Specifically, we adopt the core
+concept of decoupling the decoder queries into  two distinct components: \textit{intent queries}, also referred to as motion or mode queries, mapping the different possible trajectories and the \textit{dynamic queries} inferring the instanteneous momentum state of the target vehicle, which are outputed from our LSTM block.
+
+At the encoder stage, the Lidar points and Camera pixels are projected into the unified encoder features space dimensions after being pre-processed respectively trough the \textit{Pointpillar} and the \textit{Resnet-18} backbones already introduced in the previous sub-sections.  The attention head module being permutation invariant (the head is not a sequential process and treat all the tokens in parallel), the network is unaware of the spatial distribution of the tokens and therefore must
+be explicitly injected into the input embedding vectors.  To do so, our model encodes the structural positions of the
+processed LiDAR and camera outputs using a 2D Sinusoidal Positional Encoding, which are summed with the projected data to form the final attention head inputs.
+
+ \begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.48\textwidth]{pictures/Demo_transformer.PNG}
+    \caption{DeMo model - Transformer architecture.}
+    \label{fig:Demo_transformer}
+\end{figure}
+
+To meet project deadlines and maintain an appropriate architectural scope for this project, our group opted to reduce the complexity of the Transformer decoder proposed in the DeMo paper - which utilizes two parallel distinct decoders with state and motion queries as input queries finalized with a third fused multi-head attention decoder - \Cref{fig:Demo_transformer}.  While we preserved the core query decoupling strategy, the transformer decoder has been simplified by adapting the standard network structure described in the following paper : \textit{"End-to-End Object Detection with Transformers"}(Carion et al., 2020) - \cite{DBLP:journals/corr/abs-2005-12872} - \Cref{fig:DETR_transformer}.
+
+ \begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.41\textwidth]{pictures/DETR_transformer.PNG}
+    \caption{DETR model - Transformer architecture.}
+    \label{fig:DETR_transformer}
+\end{figure}
+
+ The resulting decoder is constructed as follows : the target queries are formed by summing the state query, output of the LSTM network, representing the vehicle state content and the intent queries ($M$ modes), initialized as random distinct vector, with modulated variance ($\sigma$), matching targetted features dimension.  These intent queries are learnable parameters inferring the spatial intent of the vehicle's future heading.  The combined input vector lies in the space $\mathbb{R}^{M\times256}$.
+The output of the decoder is, in fine, mapped to a standard multi-modal trajectory prediction head, used by the DeMo model, projecting decoder embeddings into the future trajectory space, $\mathbb{R}^{M\times12\times2}$ (predicting $X$ and $Y$ displacements over $12$ future steps), and the motion mode probability space, $\mathbb{R}^{M\times1}$.
+
+It is worth noting that the DETR framework investigated the most suitable spatial positioning encoding at the encoder and the decoder stages - \Cref{fig:DETR_spatial_encoding}.  Our model is following the proposed strategy with a 2D Sinusoidal encoding at the encoder input and the intent queries summation at each attention layer.
+
+ \begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.48\textwidth]{pictures/DETR_spatial_encoding.PNG}
+    \caption{DETR model - Spatial encoding performance.}
+    \label{fig:DETR_spatial_encoding}
+\end{figure}
+
 \subsection{Inference and Accuracy Metrics}
 
 \section{Results}
