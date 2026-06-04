@@ -286,7 +286,7 @@ In case of LSTM block, the gradient computation is significatively different and
 
 \subsection{Transformer}
 
-The final module and core of our multi-modal model is the encoder decoder transformer. As briefly introduced at the beginning of the section, the main idea of the transformer is directly inspired from the framework proposed in \textit{"DeMo: Decoupling Motion Forecasting into Directional Intentions and Dynamic States"}(Zhang et al.,2024). Specifically, we adopt the core
+The final module and core of our multi-modal model is the encoder decoder transformer. As briefly introduced in the state of the art section, the main idea of the transformer is directly inspired from the framework proposed in \textit{"DeMo: Decoupling Motion Forecasting into Directional Intentions and Dynamic States"}(Zhang et al.,2024) - \cite{zhang2024demodecouplingmotionforecasting}. Specifically, we adopt the core
 concept of decoupling the decoder queries into  two distinct components: \textit{intent queries}, also referred to as motion or mode queries, mapping the different possible trajectories and the \textit{dynamic queries} inferring the instanteneous momentum state of the target vehicle, which are outputed from our LSTM block.
 
 At the encoder stage, the Lidar points and Camera pixels are projected into the unified encoder features space dimensions after being pre-processed respectively trough the \textit{Pointpillar} and the \textit{Resnet-18} backbones already introduced in the previous sub-sections.  The attention head module being permutation invariant (the head is not a sequential process and treat all the tokens in parallel), the network is unaware of the spatial distribution of the tokens and therefore must
