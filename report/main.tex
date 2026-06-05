@@ -321,7 +321,71 @@ It is worth noting that the DETR framework investigated the most suitable spatia
 
 \subsection{Inference and Accuracy Metrics}
 
+\Large TALK ABOUT \Cref{fig:loss_evol} AND FINISH CHAPTER \normalsize
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.48\textwidth]{pictures/Loss_evol.png}
+    \caption{Evolution of the loss during training.}
+    \label{fig:loss_evol}
+\end{figure}
+
 \section{Results}
+
+To determine the number of epochs for training, two of the metrics were used: \textbf{MinADE} and \textbf{MinFDE}. Their respective evolution with the number of epochs is plotted on \cref{fig:perf_evol} and the performances start to stagnate from epoch 8, with close to no improvement with an additional training. The model used is therefore the one using 15 epochs, according to the increase in training loss seen in \cref{fig:loss_evol}.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.48\textwidth]{pictures/Metrics_Perf.png}
+    \caption{Evolution of the performances during training.}
+    \label{fig:perf_evol}
+\end{figure}
+
+\Cref{fig:example} shows how HTTP predicts the trajectory in different scenarios. With moving cars, the model is quite accurate at least for the first few seconds, as seen in \cref{fig:example1,fig:example4}. 
+
+Stopped cars are much more difficult to handle, as the momentum of the cars is taken into account, making it really hard to understand that a car might start moving. \Cref{fig:example2} is therefore unable to accurately predict the trajectory of the car that was just stopped. A way to improve this would be to use more situations with traffic lights in the training dataset, or to implement a specific loss function for areas where car have to stop.
+
+Parked cars are accurately predicted, as shown on \cref{fig:example3}.
+
+The final metrics on the validation dataset with our model are:
+\begin{itemize}
+    \item minADE: 1.725~m
+    \item minFDE: 3.337~m
+    \item Miss rate: 18.0\%
+\end{itemize}
+
+\begin{figure*}[t]
+    \centering
+    \begin{subfigure}[b]{0.24\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{pictures/Scene_0.png}
+        \caption{Moving car}
+        \label{fig:example1}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.24\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{pictures/Scene_25.png}
+        \caption{Stopped car}
+        \label{fig:example2}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.24\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{pictures/Scene_500.png}
+        \caption{Parked car}
+        \label{fig:example3}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.24\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{pictures/Scene_325.png}
+        \caption{Moving car}
+        \label{fig:example4}
+    \end{subfigure}
+    \caption{Overlay of the true trajectory (green) of the cars and the predicted trajectory (blue). The yellow lines correspond to trajectories not selected by the model. Red areas are places where cars should stop.}
+    \label{fig:example}
+\end{figure*}
 
 \section{Conclusions}
 
