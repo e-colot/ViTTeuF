@@ -31,7 +31,7 @@
 
 \begin{document}
 
-\title{HTTP - a Hybrid Transformer for Trajectory Prediction}
+\title{HTTP - a Hybrid Transformer for Trajectory Predictor}
 
 \author{\IEEEauthorblockN{Arico Amaury}
 \IEEEauthorblockA{\textit{BruFace student}}
@@ -44,9 +44,9 @@
 
 \maketitle
 
-\begin{abstract}
-TODO
-\end{abstract}
+% \begin{abstract}
+% TODO
+% \end{abstract}
 
 \section{Introduction}
 Autonomous vehicles are widely considered to be a major part of the future of transportation. However, their deployment still faces important challenges, particularly in the detection and motion prediction of surrounding agents such as pedestrians and vehicles within complex driving environments.
@@ -61,12 +61,12 @@ The obtained results are consistent with the existing literature on the subject.
 
 This section presents the main concepts and architectures related to multimodal perception and trajectory forecasting for autonomous driving systems.
 
-\subsection{nuScenes dataset}
+\subsection{NuScenes Dataset}
 
-For this project, we relied on the nuScenes dataset, which consists of driving scenes recorded using a Renault Zoe electric vehicle equipped with several type of sensors, including cameras, lidar sensors, and radar sensors.
+For this project, we relied on the nuScenes dataset \cite{nuscenes}, which consists of driving scenes recorded using a Renault Zoe electric vehicle equipped with several type of sensors, including cameras, lidar sensors, and radar sensors.
 \
 
-The dataset contains recordings collected in both Boston and Singapore using a similar sensor configuration. In this work, we use the mini version of the original dataset containing 1000 scenes of 20 seconds recorded at a frequency of 2 Hz.
+The dataset contains recordings collected in Boston and Singapore using a similar sensor configuration. In this work, we use the mini version of the original dataset containing 1000 scenes of 20 seconds recorded at a frequency of 2 Hz.
 
 \subsubsection{Objective of the nuScenes dataset}
 
@@ -115,7 +115,7 @@ Objects present in the keyframes are manually annotated and divided into 23 sema
 
 \subsection{Decoupling Motion Forecasting}
 
-DeMo proposes a trajectory forecasting framework for autonomous driving that aims to improve both the diversity and temporal consistency of predicted trajectories. Most recent forecasting methods rely on vectorized scene representations and follow a one-query-one-trajectory strategy, where each query directly predicts a single future trajectory. Although effective, this approach often provides limited modeling of the temporal evolution of vehicle states.
+DeMo \cite{zhang2024demodecouplingmotionforecasting} proposes a trajectory forecasting framework for autonomous driving that aims to improve both the diversity and temporal consistency of predicted trajectories. Most recent forecasting methods rely on vectorized scene representations and follow a one-query-one-trajectory strategy, where each query directly predicts a single future trajectory. Although effective, this approach often provides limited modeling of the temporal evolution of vehicle states.
 \
 
 To overcome this limitation, DeMo introduces a decoupled query representation combined with State Space Models based on the Mamba architecture. Compared to conventional Transformer-based sequence modeling approaches, Mamba offers improved efficiency for long sequential dependencies while preserving strong temporal modeling capabilities.
@@ -152,8 +152,6 @@ By separating directional intentions from temporal dynamic modeling, DeMo achiev
 
 Experimental results obtained on the nuScenes and Argoverse 2 datasets show that this decoupled strategy improves trajectory prediction accuracy while maintaining efficient inference performance. This approach will serve as one of the main inspirations for our proposed model.
 
-\section{The Dataset}
-
 \section{Our Model}
 
 The HTTP model presented in this paper uses both LiDAR points and pictures taken from the front camera in order to predict the trajectory of nearby vehicles. The inputs are refined using either the PointPillar model \cite{lang2019pointpillars} for the LiDAR, or the ResNet-18 model \cite{he2016deep} to process the pictures.
@@ -175,18 +173,18 @@ The extracted features are then fused inside a Transformer that produces a traje
     \centering
     
     % First Subfigure (Top Left within the column)
-    \begin{subfigure}{0.48\columnwidth}
+    \begin{subfigure}{0.42\columnwidth}
         \centering
         \includegraphics[width=\textwidth]{pictures/pointpillar1.png}
-        \caption{Pillar shaping.}
+        \caption{Pillar shaping. The yellow pillars are kept as only those contain lidar points.}
         \label{fig:pointpillar1}
     \end{subfigure}
     \hfill % Pushes them to the left and right edges of the single column
     % Second Subfigure (Top Right within the column)
-    \begin{subfigure}{0.48\columnwidth}
+    \begin{subfigure}{0.54\columnwidth}
         \centering
         \includegraphics[width=\textwidth]{pictures/pointpillar2.png}
-        \caption{Feature extraction.}
+        \caption{Feature extraction. The number of features per point is increased and the max pooling is then applied.}
         \label{fig:pointpillar2}
     \end{subfigure}
     
@@ -196,7 +194,7 @@ The extracted features are then fused inside a Transformer that produces a traje
     \begin{subfigure}{0.96\columnwidth}
         \centering
         \includegraphics[width=\textwidth]{pictures/pointpillar3.png}
-        \caption{CNN. plain lines are convolutions and dashed lines are deconvolutions. The dotted line represents a concatenation.}
+        \caption{CNN. Plain lines are convolutions and dashed lines are deconvolutions. The dotted line represents a concatenation.}
         \label{fig:pointpillar3}
     \end{subfigure}
 
@@ -216,16 +214,16 @@ The last stage is a CNN, performing convolutions and deconvolutions on the pilla
 The dimensions of the map on which pillars are placed were determined in order to contain all the voxels in the dataset.
 
 \subsection{Resnet-18}
- Rather than projecting the raw camera data directly into the target feature dimensions at the encoder, the input passes through feature extraction network introduced in the paper \textit{"Deep Residual Learning for Image Recognition"}(He et al., 2015), known as \textbf{Resnet}.  Historically, in 2015, image treatment was lead by the assumption that increasing network depth improves in a steadly way the feature extraction capacity of the network.  However, this idea hits severe optimization bottlenecks. First, the vanishing/exploding gradient during the backpropagation and second, a degradation of the training error once reaching a floor value.  The latter degradation reveals a fundamental limitation of such deep network stacking linear transformation and non-linear activation function (e.g. ReLu) which is expressed, in the litterature, by the difficutly of performing an identity mapping for deep layers, or saying otherwise the ability to perform an identity transformation.  To give an example, if a 30 layers Convolutional Neural Networks (\textbf{CNNs}) training leads to a lower error than a 50 layers counterpart, it implies that the 20 additional layers are, in the first place, unable to converge towards the same model accuracy, but furthermore, are distorting the output features by the inability of the NN layers to operate an identity transformation. To overcome these limiting performance constraints, \textbf{Resnet} introduces a direct path between the embedded input vector and the output of the feedforward performing a elementwise summation - \Cref{fig:Resnet_strat}.  This path, also known as shortcut connection, make trivial the build of a identity mapping (no weigth paramater through the direct connection) while optimizing the features of the \textbf{input residual} - $\mathcal{F}\mathrm{(x)}$.
+ Rather than projecting the raw camera data directly into the target feature dimensions at the encoder, the input passes through a feature extraction network introduced in \citetitle{he2016deep}, known as \textbf{Resnet}.  Historically, in 2015, image treatment was lead by the assumption that increasing network depth improves in a steadly way the feature extraction capacity of the network. However, this idea hits severe optimization bottlenecks. First, the vanishing/exploding gradient during the backpropagation and second, a degradation of the training error once reaching a floor value.  The latter degradation reveals a fundamental limitation of such deep network stacking linear transformation and non-linear activation function (e.g. ReLu) which is expressed, in the litterature, by the difficutly of performing an identity mapping for deep layers, or saying otherwise the ability to perform an identity transformation. To give an example, if a 30 layers Convolutional Neural Network (\textbf{CNN}) training leads to a lower error than a 50 layers counterpart, it implies that the 20 additional layers are, in the first place, unable to converge towards the same model accuracy, but furthermore, are distorting the output features by the inability of the NN layers to operate an identity transformation. To overcome these limiting performance constraints, \textbf{Resnet} introduces a direct path between the embedded input vector and the output of the feedforward performing a elementwise summation - \cref{fig:Resnet_strat}.  This path, also known as shortcut connection, makes the build of an identity mapping (no weigth paramater through the direct connection) trivial, while optimizing the features of the \textbf{input residual} - $\mathcal{F}\mathrm{(x)}$.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.3\textwidth]{pictures/Resnet_strat.PNG}
-    \caption{Resnet block : residual learning.}
+    \caption{Resnet block: residual learning.}
     \label{fig:Resnet_strat}
 \end{figure}
 
- The HTTP model incorparates a Resnet-18 architecture for image processing.  As indicated by the naming, the network contains a total of \textbf{18} layers with learnable parameters. The image is first resized, normalized and centered around zero prior being propagated through the Resnet backbone.  The output features are mapped via a linear layer and dimensioned to match the target size required for the embedding vectors at the encoder.  \Cref{fig:Resnet18_arch} showcases the network details.
+ The HTTP model incorporates a Resnet-18 architecture for image processing. As indicated by the naming, the network contains a total of \textbf{18} layers with learnable parameters. The image is first resized, normalized and centered around zero prior to being propagated through the Resnet backbone. The output features are mapped via a linear layer and dimensioned to match the target size required for the embedding vectors at the encoder.  \Cref{fig:Resnet18_arch} showcases the network details.
 
 \begin{figure}[htbp]
     \centering
@@ -234,11 +232,11 @@ The dimensions of the map on which pillars are placed were determined in order t
     \label{fig:Resnet18_arch}
 \end{figure}
 
-It is worth noting that while the Resnet-18 has been built from scratch in a dedicated class for learning prupose, the model utilizes the standardized Resnet library enabling the integration of pre-trained weights reducing the training convergence time.
+It is worth noting that while the Resnet-18 has been built from scratch in a dedicated class for learning purpose, the model utilizes the standardized Resnet library enabling the integration of pre-trained weights reducing the training convergence time.
 
 \subsection{Long Short Term Memory}
 
-  The last significant data still remaining at our disposal is the past trajectory history of the vehicle whose future path our model attempts to predict.  This coordinate sequences carries critical information about the kinetic and momentum state of the vehicle.  Nevertheless, these measurements are time-dependent and a standard feedforward linear NN is poorly suited to extract features spanning accross distinct timesteps.  To efficiently extract these dynamics, our model introduces a Recurrent Neuronal Network block (\textbf{RNN}), and more specifically a Long Short Term Memory (\textbf{LSTM}) block - \cite{DBLP:journals/corr/abs-2105-06756}.  Unlike to a standard RNN relying to a single memory state (known as the hidden state, $\mathrm{h_i}$), the LSTM decouples memory representation into a long term memory cell ($\mathrm{\mathcal{C}_i}$) and a short term memory state ($\mathrm{h_i}$).
+  The last significant data still remaining at our disposal is the past trajectory history of the vehicle whose future path our model attempts to predict. These coordinate sequences carries critical information about the kinetic and momentum state of the vehicle. Nevertheless, these measurements are time-dependent and a standard feedforward linear NN is poorly suited to extract features spanning across distinct timesteps. To efficiently extract these dynamics, our model introduces a Recurrent Neuronal Network block (\textbf{RNN}), and more specifically a Long Short Term Memory (\textbf{LSTM}) block - \cite{DBLP:journals/corr/abs-2105-06756}. Unlike to a standard RNN relying on a single memory state (known as the hidden state, $\mathrm{h_i}$), the LSTM decouples memory representation into a long term memory cell ($\mathrm{\mathcal{C}_i}$) and a short term memory state ($\mathrm{h_i}$).
 
  \begin{figure}[htbp]
     \centering
@@ -247,7 +245,7 @@ It is worth noting that while the Resnet-18 has been built from scratch in a ded
     \label{fig:LSTM_arch}
 \end{figure}
 
-The long term memory cell is linked with the short term memory state and the current input through \textbf{three gates}, namely the forget gate, the input gate and the candidate gate.  These gates regulates how the input and the short term memory modulate the long term memory cell, $\mathcal{C}_t$.  It is achieved either by attenuating features by element-wise multiplication with the forgetting output, $f_t$ or by adding new features through the combination of candidate gate output, $\tilde{c}_t$ and input gate output, $m_t$.
+The long term memory cell is linked with the short term memory state and the current input through \textbf{three gates}, namely the forget gate, the input gate and the candidate gate. These gates regulate how the input and the short term memory modulate the long term memory cell, $\mathcal{C}_t$. It is achieved either by attenuating features by element-wise multiplication with the forgetting output, $f_t$ or by adding new features through the combination of the candidate gate's output, $\tilde{c}_t$ and input gate's output, $m_t$.
 
 \begin{align}
     f_t &= \sigma(W_f \cdot [h_{t-1}, x_t] + b_f) \\
@@ -256,11 +254,11 @@ The long term memory cell is linked with the short term memory state and the cur
     \mathcal{C}_t &= \mathcal{C}_{t-1} \odot f_t + \tilde{c}_t \odot m_t
 \end{align}
 
-$W_{h}$, $W_{x}$, $W_{x}$, $b_f$, $b_c$ and $b_m$ denote respectively the weights matrix and the biais vector associated to the gates, $h_{t-1}$ the previous hidden state, $x_{t}$ the current input.
+$W_{h}$, $W_{x}$, $W_{x}$, $b_f$, $b_c$ and $b_m$ denote respectively the weight matrices and the bias vectors associated to the gates, $h_{t-1}$ the previous hidden state and $x_{t}$ the current input.
  
-The primary advantage of such architecture lies in its stability against the vanishing/exploding gradient descent which is caused, for a standard RNN, by the recursive update of the hidden state at each time step leading making this long-term temporal dependency sensitive to such gradient problematic.
+The primary advantage of such architecture lies in its stability against the vanishing/exploding gradient descent which is caused, for a standard RNN, by the recursive update of the hidden state at each time step making this long-term temporal dependency sensitive to such gradient problematic.
 
-For the standard RNN, The loss gradient of the hidden state is computed by repeated weight matrix multiplication, $W_{h}$, leading to a vanishing or exploding gardient depending on the largest matrix eigenvalue value.
+For the standard RNN, The loss gradient of the hidden state is computed by repeated weight matrix multiplications, $W_{h}$, leading to a vanishing or exploding gradient depending on the largest matrix eigenvalue value.
 
 \begin{equation}
     h_t = \tanh(W_{h} h_{t-1} + W_{x} x_t + b)
@@ -270,9 +268,9 @@ For the standard RNN, The loss gradient of the hidden state is computed by repea
     \dfrac{\partial \varepsilon}{\partial h_k} =  \dfrac{\partial \varepsilon}{\partial h_t} \cdot \prod_{j = k+1}^{t}\mathrm{term(\tanh(\alpha))}\cdot  W_{h}^T
 \end{equation}
 
-$W_{h}$ and $W_{x}$ denote the weights matrix associated to the hidden state and the input, $b$ the biais, $\varepsilon$ the error loss and $\alpha$ the term inside the function $\tanh$, Eq. ~\ref{eq:Hidden_state_equation}.
+$W_{h}$ and $W_{x}$ denote the weight matrices associated to the hidden state and the input, $b$ the bias, $\varepsilon$ the error loss and $\alpha$ the term inside the function $\tanh$, \cref{eq:Hidden_state_equation}.
 
-In case of LSTM block, the gradient computation is significatively different and depends on the dynamic activation vector ($f_j$) \textit{programmed} by the network. This vector varies in function of the current input and the previous hidden state injected in the block.
+In case of LSTM block, the gradient computation is significantly different and depends on the dynamic activation vector ($f_j$) \textit{programmed} by the network. This vector varies in function of the current input and the previous hidden state injected in the block.
 
 \begin{equation}
     \dfrac{\partial \varepsilon}{\partial \mathcal{C}_k} =  \dfrac{\partial \varepsilon}{\partial \mathcal{C}_t} \cdot \prod_{j = k+1}^{t}\dfrac{\partial \mathcal{C}_t}{\partial \mathcal{C}_{t-1}}
@@ -282,15 +280,15 @@ In case of LSTM block, the gradient computation is significatively different and
     \dfrac{\partial \mathcal{C}_t}{\partial \mathcal{C}_{t-1}} \thickapprox f_t
 \end{equation}
 
- Regarding our model implementation, upstream of the LSTM block, the original past positional history input (4 frames x 2 coordinates) is first processed by a 2-layer Linear network expanding the 2 coordinates features into 64 features then 256 features space. The hidden state vector and the long term memory Cell vector are also initialized as a zero vector.  Then, the LSTM block is instantiated by the \textit{CustomLSTMCell} class buidling a feedforward Linear network mapping the concatenated input features dimension and the hidden state vector dimension into combined four channel hidden state tensor.  The stacking of the weight matrices of each gate into an unified block helps saving time computation and optimizing the GPU usage.  By sequential application of the gate output equations, the LSTM block returns a post-processed hidden state vector output composed of 256 features.
+ Regarding our model implementation, upstream of the LSTM block, the original past positional history input (4 frames $\times$ 2 coordinates) is first processed by a 2-layer Linear network expanding the 2 coordinates features into 64 then 256 features. The hidden state vector and the long term memory Cell vector are also initialized as a zero vector. Then, the LSTM block is instantiated by the \textit{CustomLSTMCell} class building a feedforward Linear network mapping the concatenated input features dimension and the hidden state vector dimension into a four channel hidden state tensor. The stacking of the weight matrices of each gate into an unified block helps saving time computation and optimizing the GPU usage. By sequentially applying of the gate output equations, the LSTM block returns a post-processed hidden state vector output composed of 256 features.
 
 \subsection{Transformer}
 
-The final module and core of our multi-modal model is the encoder decoder transformer. As briefly introduced in the state of the art section, the main idea of the transformer is directly inspired from the framework proposed in \textit{"DeMo: Decoupling Motion Forecasting into Directional Intentions and Dynamic States"}(Zhang et al.,2024) - \cite{zhang2024demodecouplingmotionforecasting}. Specifically, we adopt the core
-concept of decoupling the decoder queries into  two distinct components: \textit{intent queries}, also referred to as motion or mode queries, mapping the different possible trajectories and the \textit{dynamic queries} inferring the instanteneous momentum state of the target vehicle, which are outputed from our LSTM block.
+The final module and core of our multi-modal model is the encoder-decoder Transformer. As briefly introduced in the state of the art section, the main idea of the transformer is directly inspired from the framework proposed in \citetitle{zhang2024demodecouplingmotionforecasting} - \cite{zhang2024demodecouplingmotionforecasting}. Specifically, we adopt the core
+concept of decoupling the decoder queries into  two distinct components: \textit{intent queries}, also referred to as motion or mode queries, mapping the different possible trajectories and the \textit{dynamic queries} inferring the instantaneous momentum state of the target vehicle, which are outputted by our LSTM block.
 
-At the encoder stage, the Lidar points and Camera pixels are projected into the unified encoder features space dimensions after being pre-processed respectively trough the \textit{Pointpillar} and the \textit{Resnet-18} backbones already introduced in the previous sub-sections.  The attention head module being permutation invariant (the head is not a sequential process and treat all the tokens in parallel), the network is unaware of the spatial distribution of the tokens and therefore must
-be explicitly injected into the input embedding vectors.  To do so, our model encodes the structural positions of the
+At the encoder stage, the lidar points and camera pixels are projected into the unified encoder features space dimensions after being pre-processed respectively trough the \textit{Pointpillar} and the \textit{Resnet-18} backbones introduced in the previous sub-sections. The attention head module being permutation invariant (the head is not a sequential process and treat all the tokens in parallel), the network is unaware of the spatial distribution of the tokens and must therefore
+be explicitly injected into the input embedding vectors. To do so, our model encodes the structural positions of the
 processed LiDAR and camera outputs using a 2D Sinusoidal Positional Encoding, which are summed with the projected data to form the final attention head inputs.
 
  \begin{figure}[htbp]
@@ -300,7 +298,7 @@ processed LiDAR and camera outputs using a 2D Sinusoidal Positional Encoding, wh
     \label{fig:Demo_transformer}
 \end{figure}
 
-To meet project deadlines and maintain an appropriate architectural scope for this project, our group opted to reduce the complexity of the Transformer decoder proposed in the DeMo paper - which utilizes two parallel distinct decoders with state and motion queries as input queries finalized with a third fused multi-head attention decoder - \Cref{fig:Demo_transformer}.  While we preserved the core query decoupling strategy, the transformer decoder has been simplified by adapting the standard network structure described in the following paper : \textit{"End-to-End Object Detection with Transformers"}(Carion et al., 2020) - \cite{DBLP:journals/corr/abs-2005-12872} - \Cref{fig:DETR_transformer}.
+To meet project deadlines and maintain an appropriate architectural scope for this project, our group opted to reduce the complexity of the Transformer decoder proposed in the DeMo paper - which utilizes two parallel distinct decoders with state and motion queries as input queries finalized with a third fused multi-head attention decoder - \Cref{fig:Demo_transformer}.  While we preserved the core query decoupling strategy, the transformer decoder has been simplified by adapting the standard network structure described in \citetitle{DBLP:journals/corr/abs-2005-12872} - \cite{DBLP:journals/corr/abs-2005-12872} - \Cref{fig:DETR_transformer}.
 
  \begin{figure}[htbp]
     \centering
@@ -309,7 +307,7 @@ To meet project deadlines and maintain an appropriate architectural scope for th
     \label{fig:DETR_transformer}
 \end{figure}
 
- The resulting decoder is constructed as follows : the target queries are formed by summing the state query, output of the LSTM network, representing the vehicle state content and the intent queries ($M$ modes), initialized as random distinct vector, with modulated variance ($\sigma$), matching targetted features dimension.  These intent queries are learnable parameters inferring the spatial intent of the vehicle's future heading.  The combined input vector lies in the space $\mathbb{R}^{M\times256}$.
+ The resulting decoder is constructed as follows: the target queries are formed by summing the state query, outputted by the LSTM network which represents the vehicle state content, and the intent queries ($M$ modes), initialized as random distinct vector with modulated variance ($\sigma$), matching the targeted features dimension. These intent queries are learnable parameters inferring the spatial intent of the vehicle's future heading. The combined input vector lies in the space $\mathbb{R}^{M\times256}$.
 The output of the decoder is, in fine, mapped to a standard multi-modal trajectory prediction head, used by the DeMo model, projecting decoder embeddings into the future trajectory space, $\mathbb{R}^{M\times12\times2}$ (predicting $X$ and $Y$ displacements over $12$ future steps), and the motion mode probability space, $\mathbb{R}^{M\times1}$.
 
 It is worth noting that the DETR framework investigated the most suitable spatial positioning encoding at the encoder and the decoder stages - \Cref{fig:DETR_spatial_encoding}.  Our model is following the proposed strategy with a 2D Sinusoidal encoding at the encoder input and the intent queries summation at each attention layer.
