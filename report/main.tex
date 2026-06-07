@@ -336,6 +336,10 @@ Lastly, we adopt the cost function strategy proposed by the \textit{DeMo} framew
 
 $w_1$ and $w_2$ denotes the weights parameters respectively fixed emparically to $1.7$ and $1.0$.
 
+\subsection{Dataset}
+
+The model training and validation requires a dedicated dataset of vehicles to track.  To do so, the \textit{Nuscenes} dataset was scanned and filtered to only retain vehicles present in $\textbf{4}$ past and $\textbf{12}$ futures scene frames.  Fortunately for us, Nuscences API supports the user into dividing the scenes into training and validation scenes set - \textit{create\_splits\_scenes} API enables a split of the scenes by scene name sorting.  The vehicles and scene name filtering was executed in the data loader initialization.
+
 
 \subsection{Training}
 
