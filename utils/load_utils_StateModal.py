@@ -4,14 +4,17 @@ from torch.utils.data import Dataset, DataLoader
 from nuscenes.nuscenes import NuScenes
 from nuscenes.utils.data_classes import LidarPointCloud
 from nuscenes.utils.splits import create_splits_scenes
+from nuscenes.map_expansion.map_api import NuScenesMap
+from nuscenes.map_expansion.bitmap import BitMap
 from PIL import Image
 import torchvision.transforms as transforms
 import os
 import matplotlib.pyplot as plt
+from pyquaternion import Quaternion
 
 
 class Feeder:
-    def __init__(self, path_to_data, model, loss_fn, optimizer, device, save_dir, batch_size=1):
+    def __init__(self, path_to_data, model, loss_fn, optimizer, device, save_dir, visu_flag, K, batch_size=1):
         self.train_loader = get_dataloader(dataroot=path_to_data, batch_size=batch_size, split = 'train')
         self.val_loader = get_dataloader(dataroot=path_to_data, batch_size=batch_size, split = 'val')
         self.model = model.to(device)
@@ -19,6 +22,8 @@ class Feeder:
         self.optimizer = optimizer
         self.device = device
         self.save_dir = save_dir
+        self.traj_visu = visu_flag
+        self.K = K
 
     def train_epoch(self):
         self.model.train()
@@ -27,7 +32,7 @@ class Feeder:
         total_loss_s = 0.0
         total_loss_ts = 0.0
         
-        for batch_idx, (images, point_clouds, histories, futures) in enumerate(self.train_loader):
+        for batch_idx, (images, point_clouds, histories, futures, map) in enumerate(self.train_loader):
             images = images.to(self.device)         # [Batch, 3, 224, 224]
             histories = histories.to(self.device)   # [Batch, 4, 2]
             futures = futures.to(self.device)       # [Batch, 12, 2]
@@ -73,11 +78,13 @@ class Feeder:
         totalFDE = 0.0
         totalMISS = 0.0
         total_samples = 0
-        max_plots = 25
+        max_plots = 200
         plotted_count = 0
 
+        nusc_instance = self.val_loader.dataset.nusc
+
         with torch.no_grad():
-            for batch_idx, (images, point_clouds, histories, futures) in enumerate(self.val_loader):
+            for batch_idx, (images, point_clouds, histories, futures, map) in enumerate(self.val_loader):
                 images = images.to(self.device)         # [Batch, 3, 224, 224]
                 histories = histories.to(self.device)   # [Batch, 4, 2]
                 futures = futures.to(self.device)       # [Batch, 12, 2]
@@ -85,7 +92,7 @@ class Feeder:
 
                 pred_trajectories,_,pred_logits = self.model(images, pc_single, histories)
 
-                metrics_out = compute_metrics(pred_trajectories, futures, miss_threshold = 2.0)
+                metrics_out = compute_metrics(pred_trajectories, pred_logits, futures, self.K, miss_threshold = 2.0)
 
                 batch_size = futures.size(0)
                 totalADE += metrics_out["MinADE"] * batch_size
@@ -96,7 +103,7 @@ class Feeder:
                 #if batch_idx % 20 == 0 :
                 #   print(f"Batch {batch_idx:03d} |PER SAMPLE => MinADE: {metrics_out['MinADE']:.4f},MinFDE: {metrics_out['MinFDE']:.4f} , Missrate : {metrics_out['Missrate']:.4f}")
 
-                if batch_idx % 50 == 0 and plotted_count < max_plots:
+                if batch_idx % 25 == 0 and plotted_count < max_plots and self.traj_visu == True:
 
                     ground_truth_traj = futures[0].cpu().numpy()          # [12, 2]
                     pred_traj = pred_trajectories[0].cpu().numpy()        # [6, 12, 2]
@@ -112,43 +119,22 @@ class Feeder:
                     # Add ego origin
                     origin = np.array([[0.0, 0.0]])
                     ground_truth_traj = np.vstack([origin, ground_truth_traj])
-                    
-                    # Plot the Ground Truth path
-                    plt.plot(ground_truth_traj[:, 0], ground_truth_traj[:, 1], 
-                            'k-o', label='Ground Truth Target', linewidth=2.5, markersize=5)
-                    plt.plot(0, 0, 'ro', markersize=8, label='Ego Vehicle Position (0,0)', zorder=5)
-                    
-                    # Plot each of trajectory predictions
-                    for k in range(pred_traj.shape[0]):
-                        mode_coords = pred_traj[k]
-                        mode_prob = probs[k].item()
 
-                        if k == best_mode_idx:
-                            lw = 4.0
-                            label_text = f'Mode {k} (Conf: {mode_prob:.2%}) [MAX PROB]'
-                            alpha = 1.0
-                        else:
-                            lw = 1.5
-                            label_text = f'Mode {k} (Conf: {mode_prob:.2%})'
-                            alpha = 0.75
-                        
-                        line_plot, = plt.plot(mode_coords[:, 0], mode_coords[:, 1], 
-                              '-o', label=label_text, linewidth=lw, markersize=4, alpha=alpha)
-                        
-                        # Highlight final frame position for each trajectory
-                        plt.plot(mode_coords[-1, 0], mode_coords[-1, 1], 'D',color = line_plot.get_color(),
-                                 markersize=12 if k == best_mode_idx else 8, alpha=alpha)
-                    
-                    plt.title(f"nuScenes Multimodal Inference | Scene {batch_idx}")
-                    plt.xlabel("X Position Relative to Agent (meters)")
-                    plt.ylabel("Y Position Relative to Agent (meters)")
-                    plt.grid(True, linestyle='--', alpha=0.6)
-                    plt.legend(loc='best')
-                    plt.axis('equal')
-                    
+                    pred_traj_new = np.zeros((pred_traj.shape[0], pred_traj.shape[1] + 1, 2))
+                    for k in range(pred_traj.shape[0]):
+                        pred_traj_new[k] = np.vstack([origin,pred_traj[k]])
+
                     plot_filename = os.path.join(self.save_dir, f"Scene_{batch_idx}.png")
-                    plt.savefig(plot_filename, dpi=150, bbox_inches='tight')
-                    plt.close()
+                    
+                    projection_map(
+                        nusc=nusc_instance,
+                        map_dict=map[0],
+                        ground_truth_traj=ground_truth_traj,
+                        pred_traj=pred_traj_new,
+                        best_mode_idx=best_mode_idx,
+                        probs=probs,
+                        plot_filename=plot_filename
+                    )
                     
                     plotted_count += 1
                     print(f" Saved in: {plot_filename}")
@@ -288,7 +274,13 @@ class NuScenesMultiModalDataset(Dataset):
             future_coords.append(np.array(temp_ann['translation'][:2]) - origin_xy)
         future_tensor = torch.tensor(np.array(future_coords), dtype=torch.float32) # [12, 2]
 
-        return image_tensor, point_cloud_tensor, history_tensor, future_tensor
+        map_dict = {
+            'sample_token': meta['sample_token'],
+            'ann_token': meta['ann_token'],
+            'origin_xy': origin_xy
+        }
+
+        return image_tensor, point_cloud_tensor, history_tensor, future_tensor, map_dict
     
 def multimodal_collate(batch):
     images = torch.stack([item[0] for item in batch], dim=0)
@@ -296,8 +288,9 @@ def multimodal_collate(batch):
     point_clouds = [item[1] for item in batch]  # Cannot stack tensor of different size ! pointcloud varies from 1 scene to another
     histories = torch.stack([item[2] for item in batch], dim=0)
     futures = torch.stack([item[3] for item in batch], dim=0)
+    map = [item[4] for item in batch]
     
-    return images, point_clouds, histories, futures
+    return images, point_clouds, histories, futures, map
 
 def get_dataloader(dataroot, version='v1.0-mini', batch_size=1, split='train'):
     nusc = NuScenes(version=version, dataroot=dataroot, verbose=False)
@@ -308,18 +301,28 @@ def get_dataloader(dataroot, version='v1.0-mini', batch_size=1, split='train'):
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle_flag, collate_fn=multimodal_collate)
 
 @torch.no_grad()
-def compute_metrics(pred_traj, gt_traj , miss_threshold):
+def compute_metrics(pred_traj, pred_logits, gt_traj, K, miss_threshold):
 
     """
     pred_traj : [Batch, Modes, 12, 2]
+    pred_logits : [Batch, Modes]
     gt_traj : [Batch, 12, 2]
+    K : K best modes to consider for metrics computation
     miss_threshold : 2 meters of allowable error
     """
+    batch_size, _, num_steps, coords = pred_traj.shape
+    
+    # Search for K best logits / Probs
+    _, topk_traj_index = torch.topk(pred_logits, k=K, dim=-1, largest=True, sorted=False) # [Batch, K]
+    
+    # Keep top K predicted trajectories for metric computation
+    pred_traj_index = topk_traj_index.unsqueeze(-1).unsqueeze(-1).expand(batch_size, K, num_steps, coords) # [Batch, K, 12, 2]
+    pred_traj_k = torch.gather(pred_traj, dim=1, index=pred_traj_index)
 
     gt_traj = gt_traj.unsqueeze(1)
     
     # MinADE (Average)
-    traj_diff = torch.norm(pred_traj - gt_traj, p=2, dim = -1) # [Batch, Modes, 12]
+    traj_diff = torch.norm(pred_traj_k - gt_traj, p=2, dim = -1) # [Batch, Modes, 12]
 
     ADE_per_batch = traj_diff.mean(dim=-1) # [Batch, Modes]
     minADE_per_batch,_ = torch.min(ADE_per_batch, dim=-1) # [Batch]
@@ -336,4 +339,98 @@ def compute_metrics(pred_traj, gt_traj , miss_threshold):
         "MinFDE" : minFDE_per_batch.mean().item(),
         "Missrate" : Missrate_per_batch.mean().item()
     }
+
+def projection_map(nusc, map_dict, ground_truth_traj, pred_traj, best_mode_idx, probs, plot_filename):
+
+    ann_data= nusc.get('sample_annotation', map_dict['ann_token'])
+    sample_data = nusc.get('sample', map_dict['sample_token'])
+    scene_data = nusc.get('scene', sample_data['scene_token'])
+    log_data = nusc.get('log', scene_data['log_token'])
+
+    # Get map png from the scene data record
+    map_name = log_data['location']
+    nusc_map = NuScenesMap(dataroot=nusc.dataroot, map_name=map_name)
+
+    origin_xy = map_dict['origin_xy']
+
+    quat = ann_data['rotation']
+    yaw_rad = Quaternion(quat).yaw_pitch_roll[0]
+    yaw_deg = np.degrees(yaw_rad)
+
+    # 1. Fetch the map mask layers as raw numpy boolean arrays (0 and 1)
+    # patch_box format: (x_center, y_center, width, height)
+    patch_box = (origin_xy[0], origin_xy[1], 140, 140) 
+    patch_angle = -yaw_rad + (np.pi / 2)
+    layer_names = ['drivable_area', 'lane', 'walkway', 'stop_line']
+    canvas_size = (1000, 1000)
+    
+    # Returns a boolean matrix of shape [len(layer_names), 1000, 1000]
+    map_mask = nusc_map.get_map_mask(patch_box, patch_angle, layer_names, canvas_size)
+    
+    # Merging the masking !
+    # Background: White (255, 255, 255)
+    bg_img = np.ones((1000, 1000, 3), dtype=np.uint8) * 255
+    
+    # Drivable layer: Light Gray (220, 220, 220)
+    bg_img[map_mask[0] == 1] = [225, 225, 225]
+    
+    # Lanes layer: Gray/Blue (180, 190, 200)
+    bg_img[map_mask[1] == 1] = [180, 190, 200]
+    
+    # Stop lines layer: Red (255, 100, 100)
+    bg_img[map_mask[3] == 1] = [255, 100, 100]
+
+    fig, ax = plt.subplots(figsize=(10, 10))
+    
+    # Display custom merged image
+    ax.imshow(bg_img, extent=[0, 1000, 1000, 0])
+
+    # Convert meters grid into pixels
+    def to_mask_pixel(local_coords):
+        # Center of image is 500, 500
+        pixel_x = 500 + (local_coords[:, 0] * (1000 / 140))
+        pixel_y = 500 + (local_coords[:, 1] * (1000 / 140)) 
+        return pixel_x, pixel_y
+
+    # Plot Ground truth into the ax.image
+    gt_px, gt_py = to_mask_pixel(ground_truth_traj)
+    ax.plot(gt_px, gt_py, 'g-o', label='Ground Truth Target', linewidth=3, markersize=6, zorder=5)
+    ax.plot(500, 500, 'ro', markersize=10, label='Agent Position (0,0)', zorder=6)
+                        
+    # Plot model prediction modes
+    for k in range(pred_traj.shape[0]):
+        mode_prob = probs[k].item()
+        px, py = to_mask_pixel(pred_traj[k])
+
+        if k == best_mode_idx:
+            lw = 4.0
+            label_text = f'Mode {k} ({mode_prob:.1%}) [MAX PROB]'
+            alpha = 1.0
+            color = 'blue'
+        else:
+            lw = 1.5
+            label_text = f'Mode {k} ({mode_prob:.1%})'
+            alpha = 0.65
+            color = 'orange'
+                            
+        ax.plot(px, py, '-o', color=color, label=label_text, linewidth=lw, markersize=4, alpha=alpha, zorder=4)
+        ax.plot(px[-1], py[-1], 'D', color=color, markersize=9 if k == best_mode_idx else 6, alpha=alpha, zorder=4)
+                        
+    ax.set_title(f"Multi-Modal Tracking Layout | Scene: {map_name}", fontsize=14, fontweight='bold')
+    ax.set_xlim(0, 1000)
+    #ax.set_ylim(1000, 0) # Invert Y axis
+    ax.axis('off')
+    ax.legend(loc='upper right', framealpha=0.9, fontsize=9)
+    
+    # Save 
+    fig.savefig(plot_filename, dpi=150, bbox_inches='tight')
+    plt.close(fig)
+
+
+def Convert_to_global_coords(Rot_mat, local_coords, origin_xy):
+    return (local_coords @ Rot_mat.T) + origin_xy
+
+
+
+
 
