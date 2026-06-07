@@ -388,21 +388,23 @@ The total number of predictions corresponds to the number of evaluated agents.Th
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.48\textwidth]{pictures/Loss_evol.png}
-    \caption{Evolution of the loss during training.}
+    \caption{Evolution of the loss during training. This was computed with 6 possible trajectories.}
     \label{fig:loss_evol}
 \end{figure}
 
 To determine the number of epochs for training, two of the metrics were used:
 \\
 
-Their respective evolution with the number of epochs is plotted on \cref{fig:perf_evol} and the performances start to stagnate from epoch 8, with close to no improvement with an additional training. The model used is therefore the one using 15 epochs, according to the increase in training loss seen in \cref{fig:loss_evol}.
+Their respective evolution with the number of epochs is plotted on \cref{fig:perf_evol} and the performances start to stagnate from epoch 8, with close to no improvement with an additional training. The model used is therefore the one at the $15^{\text{th}}$ epoch, according to the increase in training loss seen in \cref{fig:loss_evol}.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.48\textwidth]{pictures/Metrics_Perf.png}
-    \caption{Evolution of the performances during training.}
+    \caption{Evolution of the performances during training. This was computed with 6 possible trajectories.}
     \label{fig:perf_evol}
 \end{figure}
+
+Note that some metrics of \cref{tab:performance_comparison} required 10 different trajectories motion and the number of epoch was there limited to 12 for similar reasons.
 
 \section{Results}
 
@@ -477,7 +479,7 @@ This project investigated vehicle trajectory prediction for autonomous driving u
 
 A hybrid architecture named HTTP was developed by combining LiDAR point clouds processed with PointPillar, camera images encoded through ResNet-18, and vehicle trajectory history modeled using an LSTM network. These features were then fused within a Transformer architecture inspired by the query decoupling strategy proposed in the DeMo framework.
 
-The obtained results demonstrate that the proposed architecture is capable of producing realistic trajectory predictions in a variety of driving scenarios. On the validation dataset, the model achieved a minADE of 1.725 m, a minFDE of 3.337 m and a miss rate of 18.0\%. Qualitative results showed good performance for moving and parked vehicles, while stopped vehicles remain more challenging to predict.
+The obtained results demonstrate that the proposed architecture is capable of producing realistic trajectory predictions in a variety of driving scenarios. On the validation dataset, the model achieved a minADE of 2.04 m, a minFDE of 3.68 m and a miss rate of 18.4\%. Qualitative results showed good performance for moving and parked vehicles, while stopped vehicles remain more challenging to predict.
 
 Although the proposed model does not reach the performance of recent state-of-the-art methods, it successfully demonstrates the benefits of combining multimodal perception and Transformer-based trajectory forecasting. Future improvements could include richer map information, a more advanced decoder architecture and dedicated mechanisms for handling traffic lights and other traffic constraints.
 

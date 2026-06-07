@@ -1,27 +1,87 @@
-# ViTTeuF - Vision Transformer Trajectory Forecasting
+# Trajectory Forecasting Project
 
-Uses the NuScenes dataset (v1.0-mini) to train a model that performs trajectory prediction. The architecture is based on a vision transformer.
+**Students:** Amaury Arico, Emmeran Colot, Loric Lungu-Embanzu
 
-## Setup
+---
 
-1. Download the mini [dataset](https://www.nuscenes.org/nuscenes#) and extract it to the `data/` folder at root    
+## 1. System Requirements & Prerequisites
 
-2. Install the NuScenes devkit with the required libraries
+To run this pipeline standalone, ensure your environment meets the following requirements:
 
-    pip install nuscenes-devkit torch torchvision
+* **Python Version:** 3.11 (Recommended)
+* **Required Libraries:**
+    * `torch`
+    * `torchvision`
+    * `nuscenes`
+    * `os`
+    * `json`
+    * `scipy`
+    * `matplotlib`
+    * `numpy`
 
-## Repository organization
+---
 
-`data/` stores the dataset, not synced on GitHub
-`papers/` contains documentation pdfs
-`report/`contains our own report
-`tools/` contains scripts that can be called (e.g. `train.py`)
-`utils/` contains scripts called by other scripts (e.g. `load_utils.py`)
-`model/` contains files relative to the model
+## 2. File Structure
 
-## Calling Tools 
+Your project directory should be organized exactly as shown below:
 
-To ensure all the scripts can be called from eachother, every script must be run as a module **from root**:
+```text
+Project/
+├── checkpoints/
+│   └── [weights.path will be saved here]
+├── data/
+│   ├── [nuscenes mini-1.0 data]
+│   └── [map_expansion v1.3 data]
+├── model/
+│   ├── MultiStateModTraj.py
+│   ├── MultiStateModelLoss.py
+│   ├── Pointpillar.py
+│   └── LSTM_block.py
+├── Plots/
+│   └── [Scenes will be saved here]
+├── Results/
+│   └── [Logs will be saved here]
+├── tools/
+│   └── Test_StateMod.py
+└── utils/
+    └── load_utils_StateModal.py
+```
 
-    python -m tools.test
+---
 
+## 3. Pipeline Python Files
+
+The core pipeline consists of 6 active modules (plus one educational module):
+
+1. **`Test_StateMod.py`**: The main run script.
+2. **`load_utils_StateModal.py`**: The data loader module.
+3. **`MultiStateModTraj.py`**: The model architecture build module.
+4. **`MultiStateModelLoss.py`**: The custom loss function build module.
+5. **`Pointpillar.py`**: PointPillar backbone module.
+6. **`LSTM_block.py`**: The LSTM temporal module.
+7. **`Resnet.py`** *\*(Optional)*: Developed for ResNet architecture understanding; not actively used in the main pipeline.
+
+---
+
+## 4. How to Run
+
+Follow these steps to execute the pipeline:
+
+1. Open the run script `Test_StateMod.py`
+2. Select the wanted parameters for the simulation - latest model values shown below:
+    ### Traj Nbr selection
+        num_traj_pred = 10
+        class_w = 1.0
+        state_w = 1.7
+        variance = 1.0
+        features_model = 256
+    ### Metric K selection
+        K_mode = 1
+3. Set the training_flag (Training or Validation test) + the scene visualization flag:
+
+    ### Training (True) or Validation (False)
+        training_flag = False
+    ### Scene visu saving 
+        visu_flag = True
+
+4. Run the script (standalone)
