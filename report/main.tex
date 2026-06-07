@@ -320,10 +320,10 @@ It is worth noting that the DETR framework investigated the most suitable spatia
     \label{fig:DETR_spatial_encoding}
 \end{figure}
 
-Lastly, we adopt the cost function strategy proposed by the \textit{DeMo} framework.The total objective combines a trajectory regression loss, $\mathcal{L}_{\mathrm{reg}}$, a heading state cost, $\mathcal{L}_{\mathrm{state}}$, and a multi-modal classification loss, $\mathcal{L}_{\mathrm{cls}}$. The regression term computes the $L_1$ norm of the displacement error, scaled by a time-dependent weight parameter that increases exponentially with the future time horizon index to prioritize long-term forecasting accuracy. The state cost, $\mathcal{L}_{\mathrm{state}}$, penalizes the absolute heading angle error, normalized tightly between $0$ and $1$.  Finally, the classification loss, $\mathcal{L}_{\mathrm{cls}}$, is formulated as a binary cross-entropy metric evaluated against continuous soft targets. The utilization of a soft target was motivated by the produced results but also by allowing the gradients to propagate through all trajectory modes simultaneously, preventing a winner-take-all collapse of the non-winning motions.
+Lastly, we adopt the cost function strategy proposed by the \textit{DeMo} framework.The total objective combines a trajectory regression loss, $\mathcal{L}_{\mathrm{reg}}$, a heading state cost, $\mathcal{L}_{\mathrm{state}}$, and a multi-modal classification loss, $\mathcal{L}_{\mathrm{cls}}$. The regression term computes the $L_1$ norm of the displacement error, scaled by a time-dependent weight parameter that increases exponentially with the future time horizon index to prioritize long-term accuracy. The state cost, $\mathcal{L}_{\mathrm{state}}$, penalizes the absolute heading angle error, normalized between $0$ and $1$.  Finally, the classification loss, $\mathcal{L}_{\mathrm{cls}}$, is formulated as a binary cross-entropy metric evaluated with soft targets. The utilization of a soft target was motivated by the produced results but also by allowing the gradients to propagate through all trajectory modes simultaneously, preventing a winner-take-all collapse of the non-winning motions.
 
 \begin{equation}
-    \mathcal{L}_{\text{reg}} = \frac{1} \sum_{t=1}^{T} \left( e^{\frac{t}{T}} \cdot |\hat{x}_{i,t} - x_{i,t}| \right)
+    \mathcal{L}_{\text{reg}} = \sum_{t=1}^{T} \left( e^{\frac{t}{T}} \cdot |\hat{x}_{i,t} - x_{i,t}| \right)
 \end{equation}
 
 \begin{equation}
@@ -334,8 +334,13 @@ Lastly, we adopt the cost function strategy proposed by the \textit{DeMo} framew
     \mathcal{L} = \mathcal{L}_{\mathrm{reg}} + w_1 \cdot \mathcal{L}_{\mathrm{s}} + w_2 \cdot \mathcal{L}_{\mathrm{cls}}
 \end{equation}
 
-$w_1$ and $w_2$ denotes the weights parameters respectively fixed emparically to $1.5$ and $1.5$.
+$w_1$ and $w_2$ denotes the weights parameters respectively fixed emparically to $1.7$ and $1.0$.
 
+
+\subsection{Training}
+
+The proposed model is trained over $12$ epochs, as empirical observations indicated that extending training beyond this horizon led to overfitting.  Initially, the model was trained to predict $6$ future trajectories without spatial positional encoding resulting to encouraging results - see details in \textit{Results section}.  The multi-modal output was expanded to $10$  trajectories motions.  This output space expansion was required to compare our model performance and the current state-of-the-art results detailed in the \textit{DeMo} paper.  
+Throughout the training, the batch size was maintained to $1$. This constraint arises from the variable size of the raw LiDAR data resulting into variable pillar tensors size at the output of the \textit{PointPillars} process.  a zero-padding of the tensors ensuring fixed dimension size would enable mini-batch training through parallelization.
 
 \subsection{Inference and Accuracy Metrics}
 
