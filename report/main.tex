@@ -345,7 +345,7 @@ The model training and validation requires a dedicated dataset of vehicles to tr
 
 \subsection{Training}
 
-The proposed model is trained over $12$ epochs, as empirical observations indicated that extending training beyond this horizon led to overfitting.  Initially, the model was trained to predict $6$ future trajectories without spatial positional encoding resulting to encouraging results - see details in \textit{Results section}.  The multi-modal output was expanded to $10$  trajectories motions.  This output space expansion was required to compare our model performance and the current state-of-the-art results detailed in the \textit{DeMo} paper.  
+The proposed model is trained over $12$ epochs, as empirical observations indicated that extending training beyond this horizon led to overfitting.  Initially, the model was trained to predict $6$ future trajectories without spatial positional encoding resulting to encouraging results - see details in \textit{Results section}.  The multi-modal output was afterwards expanded to $10$  trajectories motions.  This output space expansion was required to compare our model performance and the current state-of-the-art results detailed in the \textit{DeMo} paper.  
 Throughout the training, the batch size was maintained to $1$. This constraint arises from the variable size of the raw LiDAR data resulting into variable pillar tensors size at the output of the \textit{PointPillars} process.  a zero-padding of the tensors ensuring fixed dimension size would enable mini-batch training through parallelization.
 
 \subsection{Inference and Accuracy Metrics}
