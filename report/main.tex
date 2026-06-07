@@ -310,7 +310,7 @@ To meet project deadlines and maintain an appropriate architectural scope for th
  The resulting decoder is constructed as follows: the target queries are formed by summing the state query, outputted by the LSTM network which represents the vehicle state content, and the intent queries ($M$ modes), initialized as random distinct vector with modulated variance ($\sigma$), matching the targeted features dimension. These intent queries are learnable parameters inferring the spatial intent of the vehicle's future heading. The combined input vector lies in the space $\mathbb{R}^{M\times256}$.
 The output of the decoder is, in fine, mapped to a standard multi-modal trajectory prediction head, used by the DeMo model, projecting decoder embeddings into the future trajectory space, $\mathbb{R}^{M\times12\times2}$ (predicting $X$ and $Y$ displacements over $12$ future steps), and the motion mode probability space, $\mathbb{R}^{M\times1}$.
 
-It is worth noting that the DETR framework investigated the most suitable spatial positioning encoding at the encoder and the decoder stages - \Cref{fig:DETR_spatial_encoding}.  Our model is following the proposed strategy with a 2D Sinusoidal encoding at the encoder input and the intent queries summation at each attention layer.
+It is worth noting that the DETR framework investigated the most suitable spatial positioning encoding at the encoder and the decoder stages - \Cref{fig:DETR_spatial_encoding}.  In an attempt to reproduce the investigated benefit, we incorporated DETR spatial encoding strategy but did not bring any improvements on the metrics and/or slightly worsening the trajectory prediction for some scene configuration.  Nevertheless, we made the choice to keep the 2D spatial encoding at the input of the attention heads following the proposed transformer architecture.
 
 
  \begin{figure}[htbp]
@@ -319,6 +319,22 @@ It is worth noting that the DETR framework investigated the most suitable spatia
     \caption{DETR model - Spatial encoding performance.}
     \label{fig:DETR_spatial_encoding}
 \end{figure}
+
+Lastly, we adopt the cost function strategy proposed by the \textit{DeMo} framework.The total objective combines a trajectory regression loss, $\mathcal{L}_{\mathrm{reg}}$, a heading state cost, $\mathcal{L}_{\mathrm{state}}$, and a multi-modal classification loss, $\mathcal{L}_{\mathrm{cls}}$. The regression term computes the $L_1$ norm of the displacement error, scaled by a time-dependent weight parameter that increases exponentially with the future time horizon index to prioritize long-term forecasting accuracy. The state cost, $\mathcal{L}_{\mathrm{state}}$, penalizes the absolute heading angle error, normalized tightly between $0$ and $1$.  Finally, the classification loss, $\mathcal{L}_{\mathrm{cls}}$, is formulated as a binary cross-entropy metric evaluated against continuous soft targets. The utilization of a soft target was motivated by the produced results but also by allowing the gradients to propagate through all trajectory modes simultaneously, preventing a winner-take-all collapse of the non-winning motions.
+
+\begin{equation}
+    \mathcal{L}_{\text{reg}} = \frac{1} \sum_{t=1}^{T} \left( e^{\frac{t}{T}} \cdot |\hat{x}_{i,t} - x_{i,t}| \right)
+\end{equation}
+
+\begin{equation}
+    \mathrm{Soft_{tar}} = e^{-\frac{\text{FDE}}{\text{variance}}}
+\end{equation}
+
+\begin{equation}
+    \mathcal{L} = \mathcal{L}_{\mathrm{reg}} + w_1 \cdot \mathcal{L}_{\mathrm{s}} + w_2 \cdot \mathcal{L}_{\mathrm{cls}}
+\end{equation}
+
+$w_1$ and $w_2$ denotes the weights parameters respectively fixed emparically to $1.5$ and $1.5$.
 
 
 \subsection{Inference and Accuracy Metrics}
