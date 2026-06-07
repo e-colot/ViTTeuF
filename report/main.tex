@@ -385,16 +385,12 @@ This can be average over all the N agents tracked to give the overall minADE:
 The total number of predictions corresponds to the number of evaluated agents.The distance d was fixed at 2m.
 \\
 
-\Large TALK ABOUT \Cref{fig:loss_evol} AND FINISH CHAPTER \normalsize
-
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.48\textwidth]{pictures/Loss_evol.png}
     \caption{Evolution of the loss during training.}
     \label{fig:loss_evol}
 \end{figure}
-
-\section{Results}
 
 To determine the number of epochs for training, two of the metrics were used:
 \\
@@ -408,18 +404,39 @@ Their respective evolution with the number of epochs is plotted on \cref{fig:per
     \label{fig:perf_evol}
 \end{figure}
 
+\section{Results}
+
 \Cref{fig:example} shows how HTTP predicts the trajectory in different scenarios. With moving cars, the model is quite accurate at least for the first few seconds, as seen in \cref{fig:example1,fig:example4}.
 
 Stopped cars are much more difficult to handle, as the momentum of the cars is taken into account, making it really hard to understand that a car might start moving. \Cref{fig:example2} is therefore unable to accurately predict the trajectory of the car that was just stopped. A way to improve this would be to use more situations with traffic lights in the training dataset, or to implement a specific loss function for areas where car have to stop.
 
 Parked cars are accurately predicted, as shown on \cref{fig:example3}.
 
-The final metrics on the validation dataset with our model are:
-\begin{itemize}
-    \item minADE: 1.725~m
-    \item minFDE: 3.337~m
-    \item Miss rate: 18.0\%
-\end{itemize}
+\Cref{tab:performance_comparison} compares our HTTP model with the state of the art, showing our model is a bit behind the best models. The miss rates are suspiciously good and is maybe due to the limited size of our dataset.
+
+\begin{table*}[t]
+    \centering
+    \caption{Performance comparison between HTTP and state of the art models. Data taken form \cite{zhang2024demodecouplingmotionforecasting}. The index on the performances indicates the number of different of forecasted trajectories.}
+    \label{tab:performance_comparison}
+    \begin{tabular}{l|ccccc}
+    \toprule
+    \textbf{Method} & $minFDE_1$ & $minADE_5$ & $minADE_{10}$ & $MR_5$ & $MR_{10}$ \\ 
+    \midrule
+    Trajectron++ & 9.52 & 1.88 & 1.51 & 0.70 & 0.57 \\
+    LaPred       & 8.37 & 1.47 & 1.12 & 0.53 & 0.46 \\
+    P2T          & 10.50 & 1.45 & 1.16 & 0.64 & 0.46 \\
+    GOHOME       & 6.99 & 1.42 & 1.15 & 0.57 & 0.47 \\
+    CASPNet      & -    & 1.41 & 1.19 & 0.60 & 0.43 \\
+    Autobot      & 8.19 & 1.37 & 1.03 & 0.62 & 0.44 \\
+    THOMAS       & \underline{6.71} & 1.33 & 1.04 & 0.55 & \underline{0.42} \\
+    PGP          & 7.17 & 1.27 & \underline{0.94} & 0.52 & 0.34 \\
+    LAformer     & 6.95 & \textbf{1.19} & 1.19 & \underline{0.48} & 0.48 \\ 
+    DeMo         & \textbf{6.60} & \underline{1.22} & \textbf{0.89} & 0.43 & 0.34 \\
+    \midrule
+    \textbf{HTTP (ours)} & 9.02 & 2.04 & 1.99 & \textbf{0.18} & \textbf{0.18} \\
+    \bottomrule
+    \end{tabular}
+\end{table*}
 
 \begin{figure*}[t]
     \centering
