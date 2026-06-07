@@ -46,7 +46,7 @@ Folder should be structured in the following way :
 ---------load_utils_StateModal.py
 
 -------------------------------------------------
-3. PIPELINE WORKFLOW
+3. PIPELINE PYTHON FILES
 -------------------------------------------------
 
 The core pipeline consists of 6 modules:
