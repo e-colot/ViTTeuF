@@ -28,26 +28,24 @@ class CustomLSTMCell(nn.Module):
         h_prev: [Batch, Hidden_Size] (Short-term memory from last step)
         c_prev: [Batch, Hidden_Size] (Long-term memory from last step)
         """
-        # 1. Concatenate input and previous hidden state
-        combined = torch.cat([x, h_prev], dim=1) # Shape: [Batch, Input_Size + Hidden_Size]
+        #Concatenate input and previous hidden state
+        combined = torch.cat([x, h_prev], dim=1) # [Batch, Input_Size + Hidden_Size]
         
-        # 2. Compute projections for all gates at once
-        gates = self.gates_layer(combined) # Shape: [Batch, 4 * Hidden_Size]
+        # Project for all gates at once
+        gates = self.gates_layer(combined) # [Batch, 4*Hidden_Size]
         
-        # 3. Split the giant tensor back into 4 individual gates
+        # Split the tensor into the 4 original gates
         f_gate, i_gate, c_candidate, o_gate = torch.chunk(gates, chunks=4, dim=1)
         
-        # 4. Apply activation functions to the gates
+        # Activation fun
         f_out = torch.sigmoid(f_gate)       # Forget gate
         i_out = torch.sigmoid(i_gate)       # Input gate
         cell_out = torch.tanh(c_candidate)     # Candidate state cell update
         o_out = torch.sigmoid(o_gate)       # Output gate
         
-        # 5. Update Long-Term Memory (Cell State)
-        cell_next = (f_out * c_prev) + (i_out * cell_out) # Shape: [Batch, Hidden_Size]
-        
-        # 6. Update Short-Term Memory (Hidden State)
-        h_next = o_out * torch.tanh(cell_next) # Shape: [Batch, Hidden_Size]
+        # LT cell and ST state
+        cell_next = (f_out * c_prev) + (i_out * cell_out) # [Batch, Hidden_Size]
+        h_next = o_out * torch.tanh(cell_next) # [Batch, Hidden_Size]
         
         return h_next, cell_next
     
@@ -73,7 +71,7 @@ class CustomLSTM(nn.Module):
         # Array to store outputs for every step if needed
         outputs = []
         
-        # 2. Loop chronologically through the timeframe ! [4 Frames]
+        # Loop through the timeframe ! [4 Frames]
         for t in range(time_steps):
             x_t = x[:, t, :] # Extract step t -> Shape: [Batch, Input_Size]
             
