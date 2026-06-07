@@ -312,6 +312,7 @@ The output of the decoder is, in fine, mapped to a standard multi-modal trajecto
 
 It is worth noting that the DETR framework investigated the most suitable spatial positioning encoding at the encoder and the decoder stages - \Cref{fig:DETR_spatial_encoding}.  Our model is following the proposed strategy with a 2D Sinusoidal encoding at the encoder input and the intent queries summation at each attention layer.
 
+
  \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.48\textwidth]{pictures/DETR_spatial_encoding.PNG}
@@ -319,7 +320,43 @@ It is worth noting that the DETR framework investigated the most suitable spatia
     \label{fig:DETR_spatial_encoding}
 \end{figure}
 
+
 \subsection{Inference and Accuracy Metrics}
+
+To evaluate the model performances, we relied on the following metrics :
+\\
+
+1) \textbf{MinADE} : ADE$_i$, Average Displacement Error represents the average distance between the predicted trajectory k and the ground truth over a time horizon T for an agent i.
+If K trajectory hypotheses are predicted, minADE$_i$ corresponds to the trajectory k whose ADE$_i$ is minimal.
+
+\begin{equation}
+    \text{minADE}_{i,K}(t^{*}) = \min_{k \in K} \frac{1}{T} \sum^{t^* + T}_{t = t^*}|| \hat{p}^{k}_i(t) - p_i(t)||
+\end{equation}
+This can be average over all the N agents tracked to give the overall minADE:
+\begin{equation}
+    \text{minADE}_{K} = \frac{1}{N}\sum_{i = 1}^N\text{minADE}_{i,K}
+\end{equation}
+\\
+
+2) \textbf{MinFDE} : the minimum Final Displacement Error is computed in a similar manner to minADE but only considers the final time step T + $t^*$:
+\begin{equation}
+      \text{minFDE}_{i,K}(t^{*}) = \min_{k \in K}  || \hat{p}^{k}_i(t^* + T) - p_i(t^* + T)||
+\end{equation}
+\begin{equation}
+    \text{minFDE}_{K} = \frac{1}{N}\sum_{i = 1}^N\text{minFDE}_{i,K}
+\end{equation}
+\\
+
+3) \textbf{Miss rate} : this metric measures the percentage of missed predictions meaning the percentage of agents for which the minFDE is above a threshold distance d :
+\begin{equation}
+   \text{Missed prediction for agent i} = \text{minFDE}_i > d
+\end{equation}
+\begin{equation}
+    \text{MR} = \frac{\text{missed predictions}}{\text{number of predictions}}
+\end{equation}
+
+The total number of predictions corresponds to the number of evaluated agents.The distance d was fixed at 2m.
+\\
 
 \Large TALK ABOUT \Cref{fig:loss_evol} AND FINISH CHAPTER \normalsize
 
@@ -332,7 +369,10 @@ It is worth noting that the DETR framework investigated the most suitable spatia
 
 \section{Results}
 
-To determine the number of epochs for training, two of the metrics were used: \textbf{MinADE} and \textbf{MinFDE}. Their respective evolution with the number of epochs is plotted on \cref{fig:perf_evol} and the performances start to stagnate from epoch 8, with close to no improvement with an additional training. The model used is therefore the one using 15 epochs, according to the increase in training loss seen in \cref{fig:loss_evol}.
+To determine the number of epochs for training, two of the metrics were used:
+\\
+
+Their respective evolution with the number of epochs is plotted on \cref{fig:perf_evol} and the performances start to stagnate from epoch 8, with close to no improvement with an additional training. The model used is therefore the one using 15 epochs, according to the increase in training loss seen in \cref{fig:loss_evol}.
 
 \begin{figure}[htbp]
     \centering
@@ -341,7 +381,7 @@ To determine the number of epochs for training, two of the metrics were used: \t
     \label{fig:perf_evol}
 \end{figure}
 
-\Cref{fig:example} shows how HTTP predicts the trajectory in different scenarios. With moving cars, the model is quite accurate at least for the first few seconds, as seen in \cref{fig:example1,fig:example4}. 
+\Cref{fig:example} shows how HTTP predicts the trajectory in different scenarios. With moving cars, the model is quite accurate at least for the first few seconds, as seen in \cref{fig:example1,fig:example4}.
 
 Stopped cars are much more difficult to handle, as the momentum of the cars is taken into account, making it really hard to understand that a car might start moving. \Cref{fig:example2} is therefore unable to accurately predict the trajectory of the car that was just stopped. A way to improve this would be to use more situations with traffic lights in the training dataset, or to implement a specific loss function for areas where car have to stop.
 
@@ -388,6 +428,19 @@ The final metrics on the validation dataset with our model are:
 \end{figure*}
 
 \section{Conclusions}
+
+This project investigated vehicle trajectory prediction for autonomous driving using multimodal data from the nuScenes dataset.
+
+A hybrid architecture named HTTP was developed by combining LiDAR point clouds processed with PointPillar, camera images encoded through ResNet-18, and vehicle trajectory history modeled using an LSTM network. These features were then fused within a Transformer architecture inspired by the query decoupling strategy proposed in the DeMo framework.
+
+The obtained results demonstrate that the proposed architecture is capable of producing realistic trajectory predictions in a variety of driving scenarios. On the validation dataset, the model achieved a minADE of 1.725 m, a minFDE of 3.337 m and a miss rate of 18.0\%. Qualitative results showed good performance for moving and parked vehicles, while stopped vehicles remain more challenging to predict.
+
+Although the proposed model does not reach the performance of recent state-of-the-art methods, it successfully demonstrates the benefits of combining multimodal perception and Transformer-based trajectory forecasting. Future improvements could include richer map information, a more advanced decoder architecture and dedicated mechanisms for handling traffic lights and other traffic constraints.
+
+Overall, this work highlights both the potential and the challenges of multimodal trajectory prediction for autonomous driving applications.
+
+
+
 
 \printbibliography
 \end{document}
