@@ -214,7 +214,7 @@ The last stage is a CNN, performing convolutions and deconvolutions on the pilla
 The dimensions of the map on which pillars are placed were determined in order to contain all the voxels in the dataset.
 
 \subsection{Resnet-18}
- Rather than projecting the raw camera data directly into the target feature dimensions at the encoder, the input passes through a feature extraction network introduced in \citetitle{he2016deep}, known as \textbf{Resnet}.  Historically, in 2015, image treatment was lead by the assumption that increasing network depth improves in a steadly way the feature extraction capacity of the network. However, this idea hits severe optimization bottlenecks. First, the vanishing/exploding gradient during the backpropagation and second, a degradation of the training error once reaching a floor value.  The latter degradation reveals a fundamental limitation of such deep network stacking linear transformation and non-linear activation function (e.g. ReLu) which is expressed, in the litterature, by the difficutly of performing an identity mapping for deep layers, or saying otherwise the ability to perform an identity transformation. To give an example, if a 30 layers Convolutional Neural Network (\textbf{CNN}) training leads to a lower error than a 50 layers counterpart, it implies that the 20 additional layers are, in the first place, unable to converge towards the same model accuracy, but furthermore, are distorting the output features by the inability of the NN layers to operate an identity transformation. To overcome these limiting performance constraints, \textbf{Resnet} introduces a direct path between the embedded input vector and the output of the feedforward performing a elementwise summation - \cref{fig:Resnet_strat}.  This path, also known as shortcut connection, makes the build of an identity mapping (no weigth paramater through the direct connection) trivial, while optimizing the features of the \textbf{input residual} - $\mathcal{F}\mathrm{(x)}$.
+Rather than projecting the raw high-dimensional camera data directly into latent feature space at the encoder, the input are processed through a feature extraction network introduced in \citetitle{he2016deep}, known as \textbf{Resnet}.  Historically, in 2015, image treatment was led by the assumption that increasing network depth steadily improves the feature extraction capacity of the network. However, this idea hits severe optimization bottlenecks. Beyong the well-known vanishing/exploding gradient problem during the backpropagation of deep network, the model encounteres a saturation and finally a degradation of the training error once reaching a threshold.  The latter degradation reveals a fundamental limitation of such deep network stacking linear transformation and non-linear activation function (e.g., ReLu) which is expressed, in the literature, by the difficutly of performing an identity mapping. This bottleneck translates the inability for the deep neural network to perform an identity transformation due to their design. To give an example, if a 30 layers Convolutional Neural Network (\textbf{CNN}) training leads to a lower error than a 50 layers counterpart, it implies that the 20 additional layers are, in the first place, unable to converge towards the same model accuracy, but furthermore, are distorting the output features by the inability of the NN layers to operate an identity transformation. To overcome these limiting performance constraints, \textbf{Resnet} introduces a direct path between the embedded input vector and the output of the feedforward performing a elementwise summation - \cref{fig:Resnet_strat}.  This path, also known as shortcut connection, makes the construction of an identity mapping trivial (no weight paramater through the direct connection), while optimizing the features of the \textbf{input residual} - $\mathcal{F}\mathrm{(x)}$.
 
 \begin{figure}[htbp]
     \centering
@@ -223,7 +223,7 @@ The dimensions of the map on which pillars are placed were determined in order t
     \label{fig:Resnet_strat}
 \end{figure}
 
- The HTTP model incorporates a Resnet-18 architecture for image processing. As indicated by the naming, the network contains a total of \textbf{18} layers with learnable parameters. The image is first resized, normalized and centered around zero prior to being propagated through the Resnet backbone. The output features are mapped via a linear layer and dimensioned to match the target size required for the embedding vectors at the encoder.  \Cref{fig:Resnet18_arch} showcases the network details.
+ The HTTP model incorporates a Resnet-18 architecture for image processing. As indicated by the naming, the network contains a total of \textbf{18} layers with learnable parameters. The image is first resized, normalized and centered around zero prior to being propagated through the Resnet backbone. The output features are mapped via a linear layer and dimensioned to match the target space required for the embedding vectors at the transformer encoder.  \Cref{fig:Resnet18_arch} showcases the network details.
 
 \begin{figure}[htbp]
     \centering
@@ -236,7 +236,7 @@ It is worth noting that while the Resnet-18 has been built from scratch in a ded
 
 \subsection{Long Short Term Memory}
 
-  The last significant data still remaining at our disposal is the past trajectory history of the vehicle whose future path our model attempts to predict. These coordinate sequences carries critical information about the kinetic and momentum state of the vehicle. Nevertheless, these measurements are time-dependent and a standard feedforward linear NN is poorly suited to extract features spanning across distinct timesteps. To efficiently extract these dynamics, our model introduces a Recurrent Neuronal Network block (\textbf{RNN}), and more specifically a Long Short Term Memory (\textbf{LSTM}) block - \cite{DBLP:journals/corr/abs-2105-06756}. Unlike to a standard RNN relying on a single memory state (known as the hidden state, $\mathrm{h_i}$), the LSTM decouples memory representation into a long term memory cell ($\mathrm{\mathcal{C}_i}$) and a short term memory state ($\mathrm{h_i}$).
+  The remaining critical data at our disposal is the historical driving trajectory of the target vehicle. This coordinate sequence carries critical information about the kinetic and momentum state of the vehicle. Nevertheless, these measurements are time-dependent and a standard feedforward linear NN is poorly suited to extract features spanning across distinct timesteps. To efficiently extract these dynamics, our model introduces a Recurrent Neural Network block (\textbf{RNN}), and more specifically a Long Short Term Memory (\textbf{LSTM}) block - \cite{DBLP:journals/corr/abs-2105-06756}. Unlike to a standard RNN relying on a single memory state (known as the hidden state, $\mathrm{h_i}$), the LSTM decouples memory representation into a long term memory cell ($\mathrm{\mathcal{C}_i}$) and a short term memory state ($\mathrm{h_i}$).
 
  \begin{figure}[htbp]
     \centering
@@ -245,13 +245,14 @@ It is worth noting that while the Resnet-18 has been built from scratch in a ded
     \label{fig:LSTM_arch}
 \end{figure}
 
-The long term memory cell is linked with the short term memory state and the current input through \textbf{three gates}, namely the forget gate, the input gate and the candidate gate. These gates regulate how the input and the short term memory modulate the long term memory cell, $\mathcal{C}_t$. It is achieved either by attenuating features by element-wise multiplication with the forgetting output, $f_t$ or by adding new features through the combination of the candidate gate's output, $\tilde{c}_t$ and input gate's output, $m_t$.
+The long term memory cell is linked with the short term memory state and the current input through \textbf{three gates}, namely the forget gate, the input gate and the candidate gate. These gates regulate how the input and the short term memory modulate the long term memory cell, $\mathcal{C}_t$. It is achieved either by attenuating features by element-wise multiplication with the forgetting output, $f_t$ or by adding new features through the multiplication of the candidate gate's output, $\tilde{c}_t$ and input gate's output, $m_t$. The short term memory at the next timestep is finally computed by the multiplication of the long term memory cell, at time instant $t-1$ and the output gate vector, $o_t$.
 
 \begin{align}
     f_t &= \sigma(W_f \cdot [h_{t-1}, x_t] + b_f) \\
     \tilde{c}_t &= \tanh(W_c \cdot [h_{t-1}, x_t] + b_c) \\
     m_t &= \sigma(W_m \cdot [h_{t-1}, x_t] + b_m) \\
-    \mathcal{C}_t &= \mathcal{C}_{t-1} \odot f_t + \tilde{c}_t \odot m_t
+    \mathcal{C}_t &= \mathcal{C}_{t-1} \odot f_t + \tilde{c}_t \odot m_t\\
+    o_t &= \sigma(W_o \cdot [h_{t-1}, x_t] + b_o) 
 \end{align}
 
 $W_{h}$, $W_{x}$, $W_{x}$, $b_f$, $b_c$ and $b_m$ denote respectively the weight matrices and the bias vectors associated to the gates, $h_{t-1}$ the previous hidden state and $x_{t}$ the current input.
@@ -270,7 +271,7 @@ For the standard RNN, The loss gradient of the hidden state is computed by repea
 
 $W_{h}$ and $W_{x}$ denote the weight matrices associated to the hidden state and the input, $b$ the bias, $\varepsilon$ the error loss and $\alpha$ the term inside the function $\tanh$, \cref{eq:Hidden_state_equation}.
 
-In case of LSTM block, the gradient computation is significantly different and depends on the dynamic activation vector ($f_j$) \textit{programmed} by the network. This vector varies in function of the current input and the previous hidden state injected in the block.
+In case of LSTM block, the gradient computation is significantly different and depends on the dynamic activation vector ($f_j$) \textit{programmed, or trained,} by the network. This vector varies in function of the current input and the previous hidden state injected in the block.
 
 \begin{equation}
     \dfrac{\partial \varepsilon}{\partial \mathcal{C}_k} =  \dfrac{\partial \varepsilon}{\partial \mathcal{C}_t} \cdot \prod_{j = k+1}^{t}\dfrac{\partial \mathcal{C}_t}{\partial \mathcal{C}_{t-1}}
@@ -280,7 +281,7 @@ In case of LSTM block, the gradient computation is significantly different and d
     \dfrac{\partial \mathcal{C}_t}{\partial \mathcal{C}_{t-1}} \thickapprox f_t
 \end{equation}
 
- Regarding our model implementation, upstream of the LSTM block, the original past positional history input (4 frames $\times$ 2 coordinates) is first processed by a 2-layer Linear network expanding the 2 coordinates features into 64 then 256 features. The hidden state vector and the long term memory Cell vector are also initialized as a zero vector. Then, the LSTM block is instantiated by the \textit{CustomLSTMCell} class building a feedforward Linear network mapping the concatenated input features dimension and the hidden state vector dimension into a four channel hidden state tensor. The stacking of the weight matrices of each gate into an unified block helps saving time computation and optimizing the GPU usage. By sequentially applying of the gate output equations, the LSTM block returns a post-processed hidden state vector output composed of 256 features.
+ Regarding our model implementation, upstream of the LSTM block, the original past positional history input (4 frames $\times$ 2 coordinates) is first processed by a 2-layer Linear network projecting the $2$ coordinates features into $64$ then $256$ dimensions space. The initial hidden state $h_0$ and cell state $\mathcal{C}_0$ are initialized as zero vectors. Then, the LSTM block is instantiated by the \textit{CustomLSTMCell} class. To optimize computational efficiency and maximize GPU utilization, the weight matrices for all four internal gates are vertically stacked into an unified linear transformation block. Following the sequential execution of the gate equations, the LSTM block returns a post-processed hidden state vector output consisting of $256$ features.
 
 \subsection{Transformer}
 
