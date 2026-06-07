@@ -72,7 +72,7 @@ class SpatioTemporalTrajectoryLoss(nn.Module):
         FDE_per_batch = disp_errors[...,-1] # [Batch, K]
         soft_target = torch.exp(-FDE_per_batch/self.variance)
         # Avoid harsh penality in case of winning all index selection
-        # Reminder : -ln(exp(elem)/sum(exp(elem)))
+        # Reminder : L = - y* log(sigma(x)) + (1 - y) * log(1 - sigma(x))
         loss_cls = F.binary_cross_entropy_with_logits(pred_logits, soft_target)
 
         #loss_cls = F.cross_entropy(pred_logits, winning_indices) 
